@@ -13,5 +13,24 @@ spring:
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
         spring.json.trusted.packages: "com.jhayes.returns.*"
-        # Mapping for those legacy messages still in your queue
         spring.json.type.mapping: "com.jhayes.returns.domain.model.ReturnInitiatedEvent:com.jhayes.returns.event.ReturnInitiatedEvent"
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "prometheus,health,info"
+  endpoint:
+    prometheus:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name} # This is automatically added by Spring Boot
+  health:
+    defaults:
+      enabled: false
+    kafka:
+      enabled: false
+
+logging:
+  file:
+    name: "logs/notification-service.log"

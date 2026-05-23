@@ -6,7 +6,7 @@ spring:
     # Use double quotes and verify the ? and &
     url: "r2dbc:mssql://localhost:1433/returns_db?encrypt=true&trustServerCertificate=true"
     username: sa
-    password: Hayeja123!
+    password: ${DB_PASSWORD:Hayeja123!}
     pool:
       initial-size: 5
       max-size: 20
@@ -14,7 +14,7 @@ spring:
   sql:
     init:
       mode: always
-      separator: ";" # Explicitly tells Spring where one command ends and the next begins
+      separator: ";" # Explicitly set the separator to avoid issues with the default
 
   kafka:
     bootstrap-servers: localhost:9092
@@ -35,3 +35,22 @@ logging:
     root: INFO
     org.springframework.data.r2dbc: DEBUG
     com.jhayes.returns: DEBUG
+  file:
+    name: "logs/returns-orchestrator.log"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "prometheus,health,info"
+  endpoint:
+    prometheus:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name} # This is automatically added by Spring Boot
+  health:
+    defaults:
+      enabled: false
+    kafka:
+      enabled: false

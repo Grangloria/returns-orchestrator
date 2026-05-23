@@ -38,7 +38,7 @@ class ReturnOrchestratorTest {
     void shouldProcessReturnSuccessfully() {
         // 1. GIVEN
         ReturnRequest request = new ReturnRequest(
-                "HAYE-123", 1, "90210", "test@test.com", "DEFECTIVE", "ORD-1"
+                "HAYE-123", 1, "90210", "test@test.com", "DEFECTIVE", "ORD-1", "ORD-2026-99"
         );
         ReturnResponse mockTriageRes = new ReturnResponse("PRCL-123", "APPROVED", "http://label.com", System.currentTimeMillis());
 
@@ -58,7 +58,7 @@ class ReturnOrchestratorTest {
         when(repository.save(any())).thenAnswer(invocation -> Mono.just(invocation.getArgument(0)));
 
         // 2. WHEN & THEN
-        StepVerifier.create(orchestrator.processReturn(request))
+        StepVerifier.create(orchestrator.processReturn(request, "trace-id"))
                 .assertNext(response -> {
                     assertEquals("PRCL-123", response.trackingId());
                     assertEquals("APPROVED", response.status());
@@ -69,7 +69,7 @@ class ReturnOrchestratorTest {
     @Test
     void shouldProcessReturnEvenWhenCarrierIsDown() {
         // 1. GIVEN
-        ReturnRequest request = new ReturnRequest("HAYE-123", 1, "90210", "test@test.com", "DEFECTIVE", "ORD-1");
+        ReturnRequest request = new ReturnRequest("HAYE-123", 1, "90210", "CUST-MOCK-ID", "test@test.com", "DEFECTIVE", "ORD-1");
         ReturnResponse mockTriageRes = new ReturnResponse("PRCL-123", "APPROVED", null, System.currentTimeMillis());
 
         // Create the mock strategy explicitly
@@ -89,7 +89,7 @@ class ReturnOrchestratorTest {
         when(repository.save(any())).thenAnswer(inv -> Mono.just(inv.getArgument(0)));
 
         // 2. WHEN & THEN
-        StepVerifier.create(orchestrator.processReturn(request))
+        StepVerifier.create(orchestrator.processReturn(request, "trace-id"))
                 .assertNext(response -> {
                     assertEquals("PRCL-123", response.trackingId());
                     System.out.println("Handled carrier failure gracefully.");
