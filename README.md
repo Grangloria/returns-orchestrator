@@ -28,17 +28,59 @@ Traditional imperative microservices often struggle with thread-starvation, bloc
 ### Self-Healing Multi-Stage Infrastructure
 To bypass the limitation where Microsoft SQL Server containers do not automatically initialize a database instance on boot, this project introduces a self-healing cluster script inside Docker Compose. The primary database runs a native health check tool. A sidecar worker container (`sql-server-init`) detects when the database engine is healthy, verifies whether `returns_db` is missing, provisions the catalog space automatically, and cleanly shuts itself down to preserve system host memory.
 
-### Distributed Tracing & Observability Matrix
-Implements a unified telemetry strategy using **Micrometer Tracing** and the **Brave/B3 Propagation Schema**.
-* Outbound tracing parameters (`x-b3-traceid`) are automatically stamped onto the binary header arrays of Kafka network packets.
-* Consumers ingest the `ConsumerRecord` metadata envelope directly, extracting and restoring the trace identifier inside Logback's thread execution scope.
-* Advanced **Component Prefix Tagging** (`[ORCHESTRATOR-*]`, `[CARRIER-SERVICE]`, `[NOTIFICATION-SERVICE]`) ensures that when multiple isolated application consoles are centralized, transactions can be parsed sequentially by tracing a single alphanumeric string.
+### Distributed Tracing & Multi-Pillar Observability Matrix
+Implements a unified telemetry strategy combining distributed trace propagation with centralized telemetry backends.
+* Outbound tracing parameters (`x-b3-traceid`) are automatically stamped onto the binary header arrays of Kafka network packets using **Micrometer Tracing** and the **Brave/B3 Propagation Schema**.
+* Consumers ingest the `ConsumerRecord` metadata envelope directly, extracting and restoring the trace identifier inside Logback's thread Mapped Diagnostic Context (MDC) scope.
+* **Centralized Log Tiling:** Customized `logback-spring.xml` configurations force each independent service to simultaneously write console prints and append records to a centralized root `logs/` directory. This allows multi-service transaction chains to be parsed sequentially by tracking a single alphanumeric string across **Grafana Loki**.
 
 ### Intelligent Triage (Strategy Pattern)
 Uses a specialized `TriageFactory` component to evaluate incoming item properties dynamically at runtime. It routes items to optimal sorting channels (e.g., LTL Freight handling lines versus Standard Parcel sorting lines) without polluting the core controller implementation with conditional logic blocks.
 
 ### Resilient Reactive Data Access
 Employs **Spring Data R2DBC** to handle non-blocking driver calls to Microsoft SQL Server. This eliminates legacy JDBC thread-locking friction, preserving a fully reactive chain from the netty socket layer all the way down to physical disk operations.
+
+---
+
+## 📊 Observability & System Telemetry
+
+This project implements an enterprise-tier telemetry suite split across **Two Key Pillars of Telemetry**: Multi-Dimensional Time-Series Metrics and Log Aggregation. This setup bridges individual application runtimes with containerized indexing nodes to provide real-time performance tracking and cross-boundary correlation inside a single workspace.
+
+### 🔌 Local Telemetry Gateways
+* **Grafana Master Control Room Workspace:** `http://localhost:3000` *(Credentials: `admin` / `admin`)*
+* **Pillar 1: Metrics Data Source Engine (Prometheus):** `http://localhost:9090`
+* **Pillar 2: Centralized Log Aggregation Vault (Loki):** `http://localhost:3100`
+
+### 📈 Pillar 1: Time-Series Metrics (Prometheus)
+System metrics are scraped on an active **Pull-Based Schedule**. Each running microservice utilizes Spring Boot Actuator and Micrometer to compile real-time performance statistics, exposing them on a localized HTTP endpoint:
+* **Orchestrator Scraping Stream:** `http://localhost:8080/actuator/prometheus`
+* **Carrier Logistics Scraping Stream:** `http://localhost:8081/actuator/prometheus`
+* **Notification System Scraping Stream:** `http://localhost:8082/actuator/prometheus`
+
+The containerized Prometheus server samples these targets every 5 seconds, archiving metrics (JVM Heap sizes, active thread pools, R2DBC connection capacity, and Garbage Collection pauses) into its database. Grafana queries this layer using **PromQL** to paint live operational graphs under **Dashboard ID: `4701`**.
+
+### 🪵 Pillar 2: Centralized Log Aggregation (Grafana Loki + Promtail)
+To resolve terminal isolation across the cluster, logs are shipped via an automated **Push-Based Log Aggregation Pipeline**:
+1. **The Log Engine:** Services log transaction steps while outputting raw text to the centralized `./logs` folder at the project root using a rolling file appender strategy.
+2. **The Shipping Agent (Promtail):** Runs as a container service, tailing the shared root folder and streaming incoming data lines into Loki.
+3. **The Metadata Indexer (Loki):** Promtail uses a regex processing stage to parse file paths dynamically, automatic-stamping lines with clear application tags (e.g., `application="returns-orchestrator"`).
+
+#### 🔍 Practical LogQL Filter Queries
+Logs can be filtered, tracked, and isolated inside Grafana's **Explore Workspace** using **LogQL**:
+* **Isolate a Specific Service Log:** `{application="returns-orchestrator"}`
+* **Scan Entire Cluster for Runtime Exceptions:** `{job="app-logs"} |= "ERROR"`
+* **Trace an Asynchronous Transaction Chain Across Network Barriers:** `{job="app-logs"} |= "ORD-2026-99"`
+
+<details>
+<summary>🗺️ Click to Expand: Telemetry Troubleshooting & Runbook</summary>
+
+### Core Variable & Data Source Mapping
+If dashboard panels display unlinked data errors or metric variables fail to resolve:
+1. **Master Source Key:** Confirm that your Grafana workspace configuration has a data source connection variable explicitly named `DS_PROMETHEUS` mapping to your Prometheus instance.
+2. **Metadata Target Validation:** Run a raw validation probe like `jvm_memory_used_bytes` directly in the Prometheus console query box (`localhost:9090`) to verify your system label variables are actively reporting.
+3. **Log Stream Verification:** If Loki displays empty targets inside Grafana, run `docker logs returns-promtail` to ensure the container daemon has cleanly established file-read file paths to the mounted shared directory.
+
+</details>
 
 ---
 
@@ -51,7 +93,7 @@ Employs **Spring Data R2DBC** to handle non-blocking driver calls to Microsoft S
 | **Messaging** | Apache Kafka (Distributed Broker / Fan-out Topology) |
 | **Reactive Engine** | Project Reactor (`flatMap`, `deferContextual`, `doOnSuccess`) |
 | **Persistence** | R2DBC Asynchronous Driver / Microsoft SQL Server 2022 |
-| **Observability** | Micrometer Tracing / Zipkin Brave Framework |
+| **Observability** | Micrometer Tracing / Prometheus / Grafana Loki / Promtail |
 | **Build Tool** | Multi-Module Gradle Platform |
 | **API Container** | Spring WebFlux / Reactor Netty Event Loop |
 
@@ -75,58 +117,3 @@ The system stops bad data from entering the reactive chain at the gateway contai
 1. **Launch Self-Healing Cluster**:
    ```bash
    docker compose up -d
-   ```
-   *(This starts Zookeeper, Kafka, SQL Server, and provisions the `returns_db` instance automatically).*
-
-2. **Re-Index Project Dependencies**:
-   ```bash
-   ./gradlew clean build -x test
-   ```
-
-3. **Launch the Core Microservices inside your IDE**:
-   * `:returns-orchestrator` $\rightarrow$ Listening on Port `8080`
-   * `:carrier-service` $\rightarrow$ Listening on Port `8081`
-   * `:notification-service` $\rightarrow$ Listening on Port `8082`
-
----
-
-## 🧪 Testing
-
-```bash
-curl -X POST http://localhost:8080/api/v1/returns \
-  -H "Content-Type: application/json" \
-  -d '{
-    "sku": "HAYE-PROD-001",
-    "quantity": 1,
-    "pickupZip": "90210",
-    "customerId": "CUST-JH-01",
-    "customerEmail": "james@example.com",
-    "reasonCode": "DEFECTIVE",
-    "orderId": "ORD-2026-99"
-  }'
-```
-
-#### Expected Success Response Payload
-```json
-{
-  "trackingId": "PRCL-12b44442",
-  "status": "PARCEL_READY",
-  "labelUrl": "[https://carrier.com/labels/PRCL-12b44442.pdf](https://carrier.com/labels/PRCL-12b44442.pdf)",
-  "timestamp": 1779160855022
-}
-```
-
-#### Centralized Trace Output Architecture
-When checking your distributed application terminals side-by-side, notice how the unique telemetry `TraceID` smoothly propagates across system barriers and independent runtime threads:
-
-```text
-2026-05-18 22:05:01.102 [reactor-http-epoll-4] INFO  [TraceID: 6a0bd716fb4278eace554a3d4e44b59d] [ORCHESTRATOR-API] Ingesting incoming return request for Order: [ORD-2026-99]
-2026-05-18 22:05:01.105 [reactor-http-epoll-4] INFO  [TraceID: 6a0bd716fb4278eace554a3d4e44b59d] [ORCHESTRATOR-CORE] Return routing strategy computed -> Assigned Tracking ID: [PRCL-12b44442]
-2026-05-18 22:05:01.480 [reactor-tcp-epoll-6]  INFO  [TraceID: 6a0bd716fb4278eace554a3d4e44b59d] [ORCHESTRATOR-DATABASE] Manifest audit record permanently persisted to SQL Server...
-2026-05-18 22:05:01.481 [reactor-tcp-epoll-6]  INFO  [TraceID: 6a0bd716fb4278eace554a3d4e44b59d] [ORCHESTRATOR-KAFKA] Broadcasting ReturnInitiatedEvent downstream...
-
-... (Message fan-out travels asynchronously over the Kafka network boundary instantly) ...
-
-2026-05-18 22:05:01.486 [KafkaContainer#0-C-1] INFO  [TraceID: 6a0bd716fb4278eace554a3d4e44b59d] [CARRIER-SERVICE] Asynchronous Kafka event received for processing.
-2026-05-18 22:05:01.486 [KafkaContainer#0-C-1] INFO  [TraceID: 6a0bd716fb4278eace554a3d4e44b59d] [NOTIFICATION-SERVICE] Asynchronous Kafka message picked up successfully.
-```

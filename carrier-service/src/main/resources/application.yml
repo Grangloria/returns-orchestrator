@@ -12,7 +12,25 @@ spring:
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
-        # 1. Trust the entire root package to be safe
         spring.json.trusted.packages: "com.jhayes.returns.*"
-        # 2. The Bridge: Maps the OLD package name to the NEW package name
         spring.json.type.mapping: "com.jhayes.returns.domain.model.ReturnInitiatedEvent:com.jhayes.returns.event.ReturnInitiatedEvent"
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "prometheus,health,info"
+  endpoint:
+    prometheus:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name} # This is automatically added by Spring Boot
+  health:
+    defaults:
+      enabled: false
+    kafka:
+      enabled: false
+
+logging:
+  file:
+    name: "logs/carrier-service.log"
