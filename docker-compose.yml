@@ -3,26 +3,26 @@ version: '3.8'
 services:
   # =============== SQL SERVER ==============
   sql-server:
-    image: mcr.microsoft.com/mssql/server:2022-latest
+    image: mcr.microsoft.com/azure-sql-edge:latest
     container_name: returns-sql-server
     ports:
       - "1433:1433"
     environment:
       - ACCEPT_EULA=Y
-      - MSSQL_SA_PASSWORD=${DB_PASSWORD:Hayeja123!}
+      - MSSQL_SA_PASSWORD=${DB_PASSWORD:-Hayeja123!}
       - MSSQL_PID=Developer
     volumes:
       - mssql-data:/var/opt/mssql
-    # health check to verify SQL Server is ready
+    #Uses a generic bash network check because sqlcmd doesn't exist in this ARM64 image
     healthcheck:
-      test: ["CMD", "/opt/mssql-tools18/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "Hayeja123!", "-C", "-Q", "SELECT 1"]
+      test: [ "CMD-SHELL", "bash -c 'cat < /dev/null > /dev/tcp/127.0.0.1/1433'" ]
       interval: 5s
       timeout: 3s
       retries: 10
 
   # =============== SQL SERVER INITIALIZER ==============
   sql-server-init:
-    image: mcr.microsoft.com/mssql/server:2022-latest
+    image: mcr.microsoft.com/azure-sql-edge:latest
     container_name: returns-sql-server-init
     depends_on:
       sql-server:
@@ -61,6 +61,38 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+  # =============== APACHE CASSANDRA ==============
+  cassandra:
+    image: cassandra:latest
+    container_name: returns-cassandra
+    ports:
+      - "9042:9042"  # CQL native transport port
+    environment:
+      - CASSANDRA_CLUSTER_NAME=returns-cassandra-cluster
+      - CASSANDRA_DC=datacenter1
+    volumes:
+      - cassandra-data:/var/lib/cassandra
+
+  # =============== APACHE SPARK (MASTER) ==============
+  spark-master:
+    image: apache/spark:3.5.5
+    container_name: returns-spark-master
+    hostname: spark-master
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
+    ports:
+      - "8085:8080"  # Spark Master Web UI
+      - "7077:7077"  # Spark Master internal port
+
+  # =============== APACHE SPARK (WORKER) ==============
+  spark-worker:
+    image: apache/spark:3.5.5
+    container_name: returns-spark-worker
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
+    depends_on:
+      - spark-master
+    ports:
+      - "8086:8081"  # Spark Worker Web UI
 
   # ====== OBSERVABILITY STACK ======
   prometheus:
@@ -103,3 +135,4 @@ services:
 
 volumes:
   mssql-data:
+  cassandra-data:
