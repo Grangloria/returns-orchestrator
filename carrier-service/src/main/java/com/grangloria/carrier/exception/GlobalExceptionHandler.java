@@ -1,0 +1,66 @@
+package com.grangloria.carrier.exception;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ServerWebExchange;
+
+import java.net.URI;
+import java.time.Instant;
+
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ProblemDetail handleResourceNotFoundException(
+            ResourceNotFoundException ex,
+            ServerWebExchange exchange) {
+
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
+                HttpStatus.NOT_FOUND,
+                ex.getMessage()
+        );
+        problemDetail.setTitle("Resource Not Found");
+        problemDetail.setType(URI.create("https://api.returns.com/errors/not-found"));
+        problemDetail.setInstance(URI.create(exchange.getRequest().getPath().value()));
+        problemDetail.setProperty("timestamp", Instant.now());
+
+        return problemDetail;
+    }
+
+    @ExceptionHandler(ExternalApiException.class)
+    public ProblemDetail handleExternalApiException(
+            ExternalApiException ex,
+            ServerWebExchange exchange) {
+
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
+                HttpStatus.BAD_GATEWAY,
+                ex.getMessage()
+        );
+        problemDetail.setTitle("External Carrier Service Error");
+        problemDetail.setType(URI.create("https://api.returns.com/errors/bad-gateway"));
+        problemDetail.setInstance(URI.create(exchange.getRequest().getPath().value()));
+        problemDetail.setProperty("timestamp", Instant.now());
+        problemDetail.setProperty("upstreamStatus", ex.getStatusCode());
+
+        return problemDetail;
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ProblemDetail handleGenericException(
+            Exception ex,
+            ServerWebExchange exchange) {
+
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                "An unexpected error occurred. Please try again later."
+        );
+        problemDetail.setTitle("Internal Server Error");
+        problemDetail.setType(URI.create("https://api.returns.com/errors/internal-error"));
+        problemDetail.setInstance(URI.create(exchange.getRequest().getPath().value()));
+        problemDetail.setProperty("timestamp", Instant.now());
+
+        return problemDetail;
+    }
+}

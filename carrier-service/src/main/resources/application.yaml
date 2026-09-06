@@ -1,0 +1,55 @@
+server:
+  port: ${SERVER_PORT:8003}
+  error:
+    include-message: always
+    include-binding-errors: always
+
+spring:
+  application:
+    name: carrier-service
+
+  # Reactive Netty HTTP Server Settings
+  main:
+    web-application-type: reactive
+
+# Custom WebClient Configuration for External Logistics Providers
+carrier:
+  integration:
+    fedex:
+      base-url: ${FEDEX_BASE_URL:https://api-sandbox.fedex.com}
+      connect-timeout-ms: 5000
+      read-timeout-ms: 10000
+    ups:
+      base-url: ${UPS_BASE_URL:https://www.ups.com/api/v1}
+      connect-timeout-ms: 5000
+      read-timeout-ms: 10000
+
+# Springdoc OpenAPI / Swagger Configuration
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+
+# Actuator / Prometheus Metrics Settings
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "prometheus,health,info"
+  endpoint:
+    prometheus:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+# Logging Levels & File Output
+logging:
+  level:
+    root: INFO
+    com.grangloria.carrier: DEBUG
+    org.springframework.web.reactive.function.client.WebClient: DEBUG
+  file:
+    name: "logs/carrier-service.log"

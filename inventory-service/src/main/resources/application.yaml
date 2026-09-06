@@ -1,0 +1,56 @@
+server:
+  port: ${SERVER_PORT:8001}
+
+spring:
+  application:
+    name: inventory-service
+
+  r2dbc:
+    url: ${SPRING_R2DBC_URL:r2dbc:mssql://localhost:1433/inventory_db?encrypt=true&trustServerCertificate=true}
+    username: ${SPRING_R2DBC_USERNAME:sa}
+    password: ${DB_PASSWORD:Hayeja123!}
+    pool:
+      initial-size: 5
+      max-size: 20
+
+  sql:
+    init:
+      mode: always
+      separator: ";"
+
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: inventory-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.grangloria.*"
+        spring.json.use.type.headers: false
+
+logging:
+  level:
+    root: INFO
+    org.springframework.r2dbc: DEBUG
+    org.springframework.data.r2dbc: DEBUG
+    com.grangloria.inventory: DEBUG
+  file:
+    name: "logs/inventory-service.log"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "prometheus,health,info,metrics"
+  endpoint:
+    prometheus:
+      enabled: true
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: ${spring.application.name}
