@@ -13,7 +13,6 @@ services:
       - MSSQL_PID=Developer
     volumes:
       - mssql-data:/var/opt/mssql
-    #Uses a generic bash network check because sqlcmd doesn't exist in this ARM64 image
     healthcheck:
       test: [ "CMD-SHELL", "bash -c 'cat < /dev/null > /dev/tcp/127.0.0.1/1433'" ]
       interval: 5s
@@ -31,11 +30,12 @@ services:
       - /bin/bash
       - -c
       - |
-        echo "SQL Server is online. Verifying catalog schema..."
+        echo "SQL Server is online. Verifying catalog schemas..."
         /opt/mssql-tools18/bin/sqlcmd -S sql-server -U sa -P "Hayeja123!" -C -Q "IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = 'returns_db') CREATE DATABASE returns_db;"
-        echo "Database returns_db verified/created successfully. Shutting down initializer daemon."
+        /opt/mssql-tools18/bin/sqlcmd -S sql-server -U sa -P "Hayeja123!" -C -Q "IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = 'inventory_db') CREATE DATABASE inventory_db;"
+        echo "Databases returns_db and inventory_db verified/created successfully. Shutting down initializer daemon."
 
-  # =============== ZOOKEEPER - Cluster Management ==============
+  # =============== ZOOKEEPER ==============
   zookeeper:
     image: confluentinc/cp-zookeeper:latest
     container_name: returns-zookeeper
@@ -45,8 +45,7 @@ services:
     ports:
       - "2181:2181"
 
-
-  # =============== KAFKA - Event Stream ==============
+  # =============== KAFKA ==============
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     container_name: returns-kafka
@@ -62,29 +61,97 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
 
+  # =============== MICROSERVICES STACK ==============
+
+  returns-orchestrator:
+    build:
+      context: ./returns-orchestrator
+      dockerfile: Dockerfile
+    container_name: returns-orchestrator
+    ports:
+      - "8000:8000"
+    environment:
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - SPRING_R2DBC_URL=r2dbc:mssql://sql-server:1433/returns_db
+      - SPRING_R2DBC_USERNAME=sa
+      - SPRING_R2DBC_PASSWORD=${DB_PASSWORD:-Hayeja123!}
+      - CARRIER_SERVICE_URL=http://carrier-service:8004
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      sql-server-init:
+        condition: service_completed_successfully
+      kafka:
+        condition: service_started
+
+  inventory-service:
+    build:
+      context: ./inventory-service
+      dockerfile: Dockerfile
+    container_name: returns-inventory-service
+    ports:
+      - "8001:8001"
+    environment:
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - SPRING_R2DBC_URL=r2dbc:mssql://sql-server:1433/inventory_db
+      - SPRING_R2DBC_USERNAME=sa
+      - SPRING_R2DBC_PASSWORD=${DB_PASSWORD:-Hayeja123!}
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      sql-server-init:
+        condition: service_completed_successfully
+      kafka:
+        condition: service_started
+
+  notification-service:
+    build:
+      context: ./notification-service
+      dockerfile: Dockerfile
+    container_name: returns-notification-service
+    ports:
+      - "8002:8002"
+    environment:
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      - kafka
+
+  # =============== CARRIER MOCK SERVICE ==============
+  # This Microservice serves as a mock external api. This is used to mimic a call to an external
+  carrier-service:
+    build:
+      context: ./carrier-service
+      dockerfile: Dockerfile
+    container_name: returns-carrier-service
+    ports:
+      - "8003:8003"
+    volumes:
+      - ./logs:/app/logs
+
   # =============== APACHE CASSANDRA ==============
   cassandra:
     image: cassandra:latest
     container_name: returns-cassandra
     ports:
-      - "9042:9042"  # CQL native transport port
+      - "9042:9042"
     environment:
       - CASSANDRA_CLUSTER_NAME=returns-cassandra-cluster
       - CASSANDRA_DC=datacenter1
     volumes:
       - cassandra-data:/var/lib/cassandra
 
-  # =============== APACHE SPARK (MASTER) ==============
+  # =============== APACHE SPARK ==============
   spark-master:
     image: apache/spark:3.5.5
     container_name: returns-spark-master
     hostname: spark-master
     command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
     ports:
-      - "8085:8080"  # Spark Master Web UI
-      - "7077:7077"  # Spark Master internal port
+      - "8085:8080"
+      - "7077:7077"
 
-  # =============== APACHE SPARK (WORKER) ==============
   spark-worker:
     image: apache/spark:3.5.5
     container_name: returns-spark-worker
@@ -92,7 +159,7 @@ services:
     depends_on:
       - spark-master
     ports:
-      - "8086:8081"  # Spark Worker Web UI
+      - "8086:8081"
 
   # ====== OBSERVABILITY STACK ======
   prometheus:
@@ -102,7 +169,6 @@ services:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
     ports:
       - "9090:9090"
-    # wait for kafka to be ready
     depends_on:
       - kafka
 
@@ -126,7 +192,6 @@ services:
     image: grafana/promtail:2.9.4
     container_name: returns-promtail
     volumes:
-      # routes the centralized log collection to the container
       - ./logs:/var/log/apps
       - ./promtail-config.yml:/etc/promtail/config.yml
     command: -config.file=/etc/promtail/config.yml

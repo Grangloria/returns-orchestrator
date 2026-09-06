@@ -1,5 +1,5 @@
 server:
-  port: 8082 # Unique port for Notifications
+  port: ${SERVER_PORT:8002}
 
 spring:
   application:
@@ -12,8 +12,8 @@ spring:
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
-        spring.json.trusted.packages: "com.jhayes.returns.*"
-        spring.json.type.mapping: "com.jhayes.returns.domain.model.ReturnInitiatedEvent:com.jhayes.returns.event.ReturnInitiatedEvent"
+        spring.json.trusted.packages: "com.grangloria.returns.*"
+        spring.json.type.mapping: "com.grangloria.returns.domain.model.ReturnInitiatedEvent:com.grangloria.returns.event.ReturnInitiatedEvent"
 management:
   endpoints:
     web:
