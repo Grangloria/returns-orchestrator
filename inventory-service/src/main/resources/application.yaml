@@ -1,6 +1,9 @@
 server:
   port: ${SERVER_PORT:8001}
 
+carrier:
+  name: "Grangloria Freight"
+
 spring:
   application:
     name: inventory-service

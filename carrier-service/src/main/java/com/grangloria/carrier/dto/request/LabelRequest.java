@@ -1,9 +1,7 @@
 package com.grangloria.carrier.dto.request;
 
 public record LabelRequest(
-        String carrier,
-        String trackingNumber,
-        String originAddress,
-        String destinationAddress,
+        String originalTrackingNumber,
+        String customerAddress,
         double weightLbs
 ) {}

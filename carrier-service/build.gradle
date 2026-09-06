@@ -8,7 +8,7 @@ group = 'com.grangloria'
 version = '0.0.1-SNAPSHOT'
 
 java {
-    sourceCompatibility = '17'
+    sourceCompatibility = '21'
 }
 
 configurations {
@@ -27,7 +27,6 @@ dependencies {
 
     // 2. Spring Boot & Kafka
     implementation 'org.springframework.boot:spring-boot-starter-webflux'
-    implementation 'org.springframework.kafka:spring-kafka'
 
     // Core Spring Boot Observability Infrastructure
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
