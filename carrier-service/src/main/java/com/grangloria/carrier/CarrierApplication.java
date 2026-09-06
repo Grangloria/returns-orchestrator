@@ -1,4 +1,4 @@
-package com.grangloria.notification;
+package com.grangloria.carrier;
 
 import jakarta.annotation.PostConstruct;
 import org.springframework.boot.SpringApplication;
@@ -6,7 +6,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import reactor.core.publisher.Hooks;
 
 @SpringBootApplication
-public class NotificationApplication {
+public class CarrierApplication {
 
     @PostConstruct
     public void init() {
@@ -16,6 +16,6 @@ public class NotificationApplication {
     }
 
     public static void main(String[] args) {
-        SpringApplication.run(NotificationApplication.class, args);
+        SpringApplication.run(CarrierApplication.class, args);
     }
 }

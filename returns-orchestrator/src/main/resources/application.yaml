@@ -1,3 +1,6 @@
+server:
+  port: ${SERVER_PORT:8000}
+
 spring:
   application:
     name: returns-orchestrator
@@ -28,13 +31,13 @@ spring:
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
     properties:
       # This is the security 'trust' setting
-      spring.json.trusted.packages: "com.jhayes.returns.domain.model"
+      spring.json.trusted.packages: "com.grangloria.returns.domain.model"
 
 logging:
   level:
     root: INFO
     org.springframework.data.r2dbc: DEBUG
-    com.jhayes.returns: DEBUG
+    com.grangloria.returns: DEBUG
   file:
     name: "logs/returns-orchestrator.log"
 
