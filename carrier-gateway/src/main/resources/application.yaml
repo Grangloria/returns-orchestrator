@@ -1,0 +1,59 @@
+server:
+  port: ${SERVER_PORT:8004}
+
+kafka:
+  topics:
+    # Consumed Events
+    return-initiated: returns.order.initiated.v1
+    # Produced Events
+    return-label-ready: returns.label.ready.v1
+
+spring:
+  application:
+    name: carrier-gateway
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+    consumer:
+      group-id: carrier-gateway-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.grangloria.gateway.event,com.grangloria.returns.event"
+        spring.json.type.mapping: "com.grangloria.returns.event.ReturnInitiatedEvent:com.grangloria.gateway.event.ReturnInitiatedEvent"
+
+logging:
+  level:
+    root: INFO
+    com.grangloria.gateway: DEBUG
+  file:
+    name: "logs/carrier-gateway.log"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "prometheus,health,info"
+  endpoint:
+    prometheus:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+  health:
+    defaults:
+      enabled: false
+    kafka:
+      enabled: false
+
+carrier:
+  client:
+    base-url: ${CARRIER_SERVICE_URL:http://localhost:8003}
+    connect-timeout-ms: 3000
+    read-timeout-ms: 3000
