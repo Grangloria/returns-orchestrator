@@ -10,5 +10,5 @@ import java.util.UUID;
 @Repository
 public interface ManifestRepository extends ReactiveCrudRepository<ReturnManifest, UUID> {
 
-    Mono<ReturnManifest> findByTrackingId(String trackingId);
+    Mono<ReturnManifest> findByOrderId(String orderId);
 }

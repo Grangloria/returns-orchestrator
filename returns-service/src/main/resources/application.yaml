@@ -1,12 +1,23 @@
 server:
   port: ${SERVER_PORT:8000}
 
+# Root-level custom property block matching @Value("${kafka.topics...}")
+kafka:
+  topics:
+    # Produced Events
+    return-initiated: returns.order.initiated.v1
+    return-inventory: returns.inventory.update.v1
+
+    # Consumed Events
+    return-completed: returns.order.completed.v1
+    return-label-generated: returns.label.generated.v1
+    return-label-ready: returns.label.ready.v1
+
 spring:
   application:
-    name: returns-orchestrator
+    name: return-service
 
   r2dbc:
-    # Use double quotes and verify the ? and &
     url: "r2dbc:mssql://localhost:1433/returns_db?encrypt=true&trustServerCertificate=true"
     username: sa
     password: ${DB_PASSWORD:Hayeja123!}
@@ -17,21 +28,22 @@ spring:
   sql:
     init:
       mode: always
-      separator: ";" # Explicitly set the separator to avoid issues with the default
+      separator: ";"
 
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
     producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
     consumer:
-      group-id: returns-group
+      group-id: return-service-group
       auto-offset-reset: earliest
-      # These two lines tell Spring how to read the raw bytes from Kafka
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
-    properties:
-      # This is the security 'trust' setting
-      spring.json.trusted.packages: "com.grangloria.returns.domain.model"
+      properties:
+        spring.json.trusted.packages: "com.grangloria.returns.event,com.grangloria.returns.dto,com.grangloria.gateway.event"
 
 logging:
   level:
@@ -39,7 +51,7 @@ logging:
     org.springframework.data.r2dbc: DEBUG
     com.grangloria.returns: DEBUG
   file:
-    name: "logs/returns-orchestrator.log"
+    name: "logs/return-service.log"
 
 management:
   endpoints:
@@ -51,7 +63,7 @@ management:
       enabled: true
   metrics:
     tags:
-      application: ${spring.application.name} # This is automatically added by Spring Boot
+      application: ${spring.application.name}
   health:
     defaults:
       enabled: false

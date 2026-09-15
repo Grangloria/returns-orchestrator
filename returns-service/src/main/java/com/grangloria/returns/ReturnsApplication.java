@@ -1,11 +1,14 @@
 package com.grangloria.returns;
 
+import com.grangloria.returns.config.KafkaTopicProperties;
 import jakarta.annotation.PostConstruct;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import reactor.core.publisher.Hooks;
 
 @SpringBootApplication
+@EnableConfigurationProperties(KafkaTopicProperties.class)
 public class ReturnsApplication {
 
     @PostConstruct

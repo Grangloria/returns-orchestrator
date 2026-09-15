@@ -1,0 +1,112 @@
+# ==============================================================================
+# ASYNCAPI 3.1 CHEAT SHEET: HOW TO FILL OUT THIS FILE
+# ==============================================================================
+# 1. address: Put your real Kafka topic string here (e.g., returns.order.initiated.v1).
+# 2. action: Set to "send" for PRODUCERS (publishing events) or "receive" for CONSUMERS.
+# 3. x-java-class: Set to your actual Java package path (e.g., com.grangloria.returns.event.ReturnInitiatedEvent).
+# 4. properties: Add your Java Record fields here (orderId, sku, quantity, etc.) with data types.
+# 5. required: List every field name that must not be null or omitted in the JSON payload.
+# 6. [VARIABLE KEY]: Internal YAML labels (e.g., returnInitiatedChannel, MyReturnMessage).
+#    You can rename them as long as the corresponding $ref paths match.
+# ==============================================================================
+
+# 1. SPECIFICATION VERSION
+# Use "3.0.0" for AsyncAPI 3.x specifications.
+asyncapi: 3.0.0
+
+# 2. DOCUMENT METADATA
+info:
+  # The name of your service or API pipeline.
+  title: Return Orchestrator Event API
+  # Version of this API contract (increment when you change schemas/topics).
+  version: 1.0.0
+  # Short description of what this microservice does.
+  description: Event contracts for returns-orchestrator microservice.
+
+# 3. INFRASTRUCTURE / BROKERS
+servers:
+  # Key name for your environment (e.g., local-kafka, dev-kafka, prod-kafka).
+  local-kafka:
+    # Host and port of your Kafka broker.
+    host: localhost:9092
+    # The messaging protocol being used (kafka, rabbitmq, websocket).
+    protocol: kafka
+    description: Local Kafka Development Cluster
+
+# 4. TRANSPORT DESTINATIONS (KAFKA TOPICS)
+channels:
+  # [VARIABLE KEY]: Internal YAML identifier. Rename this to whatever you want.
+  returnInitiatedChannel:
+    # The actual physical Kafka topic name running on your broker.
+    address: returns.order.initiated.v1
+    messages:
+      # [VARIABLE KEY]: Internal message reference label.
+      returnInitiatedMessage:
+        # Internal link to the message definition down in components/messages.
+        $ref: '#/components/messages/MyReturnMessage'
+    description: Topic where return requests are published.
+
+# 5. APPLICATION ACTIONS (PRODUCERS & CONSUMERS)
+operations:
+  # [VARIABLE KEY]: Internal identifier for this operation.
+  publishReturnInitiated:
+    # Use "send" for PRODUCERS (publishing events) or "receive" for CONSUMERS (listening to events).
+    action: send
+    channel:
+      # Link to the channel identifier defined under "channels:" above.
+      $ref: '#/channels/returnInitiatedChannel'
+    summary: Emitted by return-orchestrator when a customer submits a return.
+
+# 6. REUSABLE COMPONENTS (MESSAGES & SCHEMAS)
+components:
+  messages:
+    # [VARIABLE KEY]: Must match the label used in $ref under channels above.
+    MyReturnMessage:
+      # Human-readable name (typically matches your Java event record name).
+      name: ReturnInitiatedEvent
+      contentType: application/json
+      payload:
+        # Link to the JSON schema payload structure defined below.
+        $ref: '#/components/schemas/MyReturnPayload'
+
+  schemas:
+    # [VARIABLE KEY]: Must match the label used in $ref under messages above.
+    MyReturnPayload:
+      type: object
+      # OPTIONAL: Package path to your Java Record class for IDE autocompletion.
+      x-java-class: com.grangloria.returns.event.ReturnInitiatedEvent
+
+      # DEFINE YOUR EVENT FIELDS HERE:
+      properties:
+        # [FIELD 1 NAME]
+        orderId:
+          type: string
+          description: Unique order identifier.
+          example: "ORD-99281"
+
+        # [FIELD 2 NAME]
+        sku:
+          type: string
+          description: Product SKU being returned.
+          example: "SKU-44102"
+
+        # [FIELD 3 NAME]
+        quantity:
+          type: integer
+          minimum: 1
+          description: Quantity of items being returned.
+          example: 1
+
+        # [FIELD 4 NAME]
+        customerEmail:
+          type: string
+          format: email
+          description: Customer contact email.
+          example: "user@example.com"
+
+      # LIST REQUIRED FIELDS (Validation fails if a producer emits a payload missing any of these keys)
+      required:
+        - orderId
+        - sku
+        - quantity
+        - customerEmail
