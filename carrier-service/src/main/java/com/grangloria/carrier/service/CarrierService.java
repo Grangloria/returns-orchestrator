@@ -22,6 +22,7 @@ public class CarrierService {
         String mockLabelUrl = "https://mock-carrier.grangloria.internal/labels/" + mockTrackingNumber + ".pdf";
 
         return Mono.just(new LabelResponse(
+                request.customerEmail(),
                 mockTrackingNumber,
                 mockLabelUrl,
                 carrierName,
