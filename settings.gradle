@@ -1,8 +1,8 @@
 rootProject.name = 'returns-system'
 
 // These are the folders Gradle will look for
-include 'common-models'
-include 'returns-orchestrator'
+include 'returns-service'
 include 'carrier-service'
 include 'notification-service'
 include 'inventory-service'
+include 'carrier-gateway'

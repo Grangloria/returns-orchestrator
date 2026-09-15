@@ -1,6 +1,15 @@
 version: '3.8'
 
 services:
+  # mock mailer server
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: mailpit
+    restart: unless-stopped
+    ports:
+      - "1025:1025" # SMTP server
+      - "8025:8025" # Web UI
+
   # =============== SQL SERVER ==============
   sql-server:
     image: mcr.microsoft.com/azure-sql-edge:latest
@@ -61,27 +70,58 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
 
+  # =============== KAFKA WEB DASHBOARD ==============
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: returns-kafka-ui
+    ports:
+      - "8088:8080" # Maps container port 8080 to host port 8085
+    environment:
+      KAFKA_CLUSTERS_0_NAME: returns-orchestrator-cluster
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+    depends_on:
+      - kafka
+
   # =============== MICROSERVICES STACK ==============
 
-  returns-orchestrator:
+  returns-service:
     build:
-      context: ./returns-orchestrator
+      context: ./returns-service
       dockerfile: Dockerfile
-    container_name: returns-orchestrator
+    container_name: returns-service
     ports:
       - "8000:8000"
     environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
       - SPRING_R2DBC_URL=r2dbc:mssql://sql-server:1433/returns_db
       - SPRING_R2DBC_USERNAME=sa
       - SPRING_R2DBC_PASSWORD=${DB_PASSWORD:-Hayeja123!}
-      - CARRIER_SERVICE_URL=http://carrier-service:8004
     volumes:
       - ./logs:/app/logs
     depends_on:
       sql-server-init:
         condition: service_completed_successfully
       kafka:
+        condition: service_started
+
+  carrier-gateway:
+    build:
+      context: ./carrier-gateway
+      dockerfile: Dockerfile
+    container_name: returns-carrier-gateway
+    ports:
+      - "8004:8004"
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - CARRIER_SERVICE_URL=http://carrier-service:8003
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      kafka:
+        condition: service_started
+      carrier-service:
         condition: service_started
 
   inventory-service:
@@ -92,6 +132,7 @@ services:
     ports:
       - "8001:8001"
     environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
       - SPRING_R2DBC_URL=r2dbc:mssql://sql-server:1433/inventory_db
       - SPRING_R2DBC_USERNAME=sa
@@ -112,6 +153,7 @@ services:
     ports:
       - "8002:8002"
     environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
     volumes:
       - ./logs:/app/logs
@@ -119,7 +161,7 @@ services:
       - kafka
 
   # =============== CARRIER MOCK SERVICE ==============
-  # This Microservice serves as a mock external api. This is used to mimic a call to an external
+  # This Microservice serves as a mock external api for 3PL carriers.
   carrier-service:
     build:
       context: ./carrier-service

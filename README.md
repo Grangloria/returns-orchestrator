@@ -9,7 +9,7 @@ A high-scale, non-blocking microservice ecosystem designed to orchestrate comple
 This project is architected as a **Multi-Module Gradle build**, enforcing strict domain boundaries and enabling absolute code reuse through a shared contract layer:
 
 * **`common-models`**: The "Single Source of Truth." A shared domain library containing immutable Java 21 Records and DTOs, ensuring strict schema enforcement and preventing payload drift across processing boundaries.
-* **`returns-orchestrator`**: The Core Ingress Node & Event Producer. Processes active web traffic, executes schema validation, performs synchronous real-time 3PL carrier tracking requests, registers persistent audit trails to database structures, and fires transaction boundary tokens downstream over Kafka.
+* **`returns-service`**: The Core Ingress Node & Event Producer. Processes active web traffic, executes schema validation, performs synchronous real-time 3PL carrier tracking requests, registers persistent audit trails to database structures, and fires transaction boundary tokens downstream over Kafka.
 * **`carrier-service`**: An asynchronous logistics consumer worker. Intercepts broadcast events to handle downstream long-running tasks, such as uploading shipping manifest duplicates to permanent enterprise AWS S3 cloud archiving buckets.
 * **`notification-service`**: An asynchronous communications worker. Automatically monitors topic boundaries to handle non-blocking customer transaction notifications via transactional SMTP engines (SendGrid).
 
