@@ -31,4 +31,7 @@ dependencies {
 
     // Email
     implementation 'org.springframework.boot:spring-boot-starter-mail'
+
+    // Resilience4j starter for Spring Boot 3
+    implementation 'io.github.resilience4j:resilience4j-spring-boot3:2.2.0'
 }

@@ -53,6 +53,9 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'io.micrometer:micrometer-tracing-bridge-brave'
     implementation 'io.micrometer:micrometer-registry-prometheus'
+
+    // Resilience4j starter for Spring Boot 3
+    implementation 'io.github.resilience4j:resilience4j-spring-boot3:2.2.0'
 }
 
 // Keep this so Gradle knows exactly where to look

@@ -49,8 +49,6 @@ dependencies {
 
     implementation 'org.springframework.kafka:spring-kafka'
 
-    implementation project(':common-models')
-
     // Micrometer Tracing
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'io.micrometer:micrometer-tracing-bridge-brave'
