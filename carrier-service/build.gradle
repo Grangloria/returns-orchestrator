@@ -50,6 +50,9 @@ dependencies {
 
     // Validation
     implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    // Resilience4j Spring Boot 3 Starter
+    implementation 'io.github.resilience4j:resilience4j-spring-boot3:2.2.0'
 }
 
 tasks.named('test') {
