@@ -1,7 +1,6 @@
 server:
   port: ${SERVER_PORT:8000}
 
-# Root-level custom property block matching @Value("${kafka.topics...}")
 kafka:
   topics:
     # Produced Events
@@ -27,8 +26,7 @@ spring:
 
   sql:
     init:
-      mode: always
-      separator: ";"
+      mode: never # Set to 'never' so schema.sql isn't re-run against existing tables on startup
 
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
@@ -40,16 +38,21 @@ spring:
     consumer:
       group-id: return-service-group
       auto-offset-reset: earliest
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      key-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
       properties:
-        spring.json.trusted.packages: "com.grangloria.returns.event,com.grangloria.returns.dto,com.grangloria.gateway.event"
+        spring.deserializer.key.delegate.class: org.apache.kafka.common.serialization.StringDeserializer
+        spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
+        spring.json.trusted.packages: "*"
+        spring.json.type.mapping: "com.grangloria.gateway.event.ReturnLabelReadyEvent:com.grangloria.returns.event.ReturnLabelReadyEvent,com.grangloria.carrier.event.ReturnLabelReadyEvent:com.grangloria.returns.event.ReturnLabelReadyEvent"
 
 logging:
   level:
     root: INFO
     org.springframework.data.r2dbc: DEBUG
     com.grangloria.returns: DEBUG
+    org.springframework.r2dbc.core.R2dbcEntityTemplate: DEBUG
+    io.r2dbc.mssql: DEBUG
   file:
     name: "logs/return-service.log"
 

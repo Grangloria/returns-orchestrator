@@ -32,8 +32,10 @@ public class ReturnService {
                 request.orderId(), request.sku());
 
         return saveToDatabase(request)
-                .doOnSuccess(saved -> {
+                .flatMap(saved -> {
                     log.info("[RETURN-SERVICE-KAFKA] Broadcasting ReturnInitiatedEvent downstream for Order ID: [{}]", request.orderId());
+
+                    // Publish the event safely inside flatMap
                     initiatedPublisher.publishReturnInitiatedEvent(
                             new ReturnInitiatedEvent(
                                     request.orderId(),
@@ -45,26 +47,28 @@ public class ReturnService {
                                     request.reason()
                             )
                     );
+
+                    return Mono.just(new ReturnResponse(
+                            saved.getOrderId(),
+                            saved.getStatus().name(),
+                            System.currentTimeMillis()
+                    ));
                 })
-                .map(saved -> new ReturnResponse(
-                        saved.getOrderId(),
-                        saved.getStatus().name(),
-                        System.currentTimeMillis()
-                ))
                 .doOnError(error -> log.error("[RETURN-SERVICE-ERROR] Operational pipeline friction encountered for Order: [{}]. Reason: {}",
-                        request.orderId(), error.getMessage()));
+                        request.orderId(), error.getMessage(), error));
     }
 
-    /**
-     * Handles incoming ReturnLabelReadyEvent from carrier-gateway
-     */
-    @Transactional
     public Mono<Void> handleLabelGenerated(ReturnLabelReadyEvent event) {
-        log.info("[RETURN-SERVICE-CONSUMER] Processing ReturnLabelReadyEvent for Order ID: [{}]", event.orderId());
+        log.info("[RETURN-SERVICE-CONSUMER] Attempting database state transition for Order ID: [{}] with Label URL: [{}]",
+                event.orderId(), event.labelUrl());
 
         return repository.findByOrderId(event.orderId())
+                .map(ReturnManifest::markNotNew) // Ensures R2DBC issues an SQL UPDATE
                 .switchIfEmpty(Mono.error(new ReturnNotFoundException(event.orderId())))
                 .flatMap(manifest -> {
+                    log.info("[RETURN-SERVICE-CONSUMER] Found manifest for Order ID: [{}]. Current status: [{}]",
+                            manifest.getOrderId(), manifest.getStatus());
+
                     if (!manifest.getStatus().canTransitionTo(ReturnState.LABEL_READY)) {
                         return Mono.error(new IllegalStateException(
                                 String.format("Invalid state transition from %s to LABEL_READY for Order: [%s]",
@@ -74,12 +78,11 @@ public class ReturnService {
 
                     manifest.setStatus(ReturnState.LABEL_READY);
                     manifest.setLabelUrl(event.labelUrl());
-                    manifest.setNewEntity(false);
 
                     return repository.save(manifest);
                 })
                 .doOnSuccess(updated -> {
-                    log.info("[RETURN-SERVICE-DATABASE] Manifest state updated to LABEL_READY for Order: [{}]", updated.getOrderId());
+                    log.info("[RETURN-SERVICE-DATABASE] ✅ SUCCESS: Manifest state permanently updated to LABEL_READY for Order: [{}]", updated.getOrderId());
 
                     ReturnLabelReadyEvent notificationEvent = new ReturnLabelReadyEvent(
                             updated.getOrderId(),
@@ -88,6 +91,8 @@ public class ReturnService {
                     );
                     labelReadyPublisher.publishReturnLabelReadyEvent(notificationEvent);
                 })
+                .doOnError(err -> log.error("[RETURN-SERVICE-DATABASE] ❌ FAILED: Database update failed for Order ID: [{}]. Cause: ",
+                        event.orderId(), err))
                 .then();
     }
 
@@ -107,13 +112,16 @@ public class ReturnService {
 
         return repository.save(manifest)
                 .doOnSuccess(savedManifest -> log.info("[RETURN-SERVICE-DATABASE] Manifest audit record permanently persisted for Order ID: [{}]",
-                        savedManifest.getOrderId()));
+                        savedManifest.getOrderId()))
+                .doOnError(error -> log.error("[RETURN-SERVICE-DATABASE-ERROR] Failed to persist manifest for Order ID: [{}]. Cause: ",
+                        request.orderId(), error));
     }
 
     public Mono<ReturnManifest> getReturnStatus(String orderId) {
         log.info("[RETURN-SERVICE-LOOKUP] Executing operational trace for Order ID: [{}]", orderId);
 
         return repository.findByOrderId(orderId)
+                .map(ReturnManifest::markNotNew)
                 .doOnNext(manifest -> log.info("[RETURN-SERVICE-LOOKUP] Manifest record located. Active State: [{}]", manifest.getStatus()))
                 .switchIfEmpty(Mono.defer(() -> {
                     log.warn("[RETURN-SERVICE-LOOKUP-WARN] Database search yielded zero results for Order ID: [{}]", orderId);

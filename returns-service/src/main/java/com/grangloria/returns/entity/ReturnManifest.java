@@ -35,7 +35,7 @@ public class ReturnManifest implements Persistable<String> {
 
     private String reason;
 
-    // Refactored from String to ReturnState Enum
+    @Column("status")
     private ReturnState status;
 
     @Column("label_url")
@@ -56,5 +56,10 @@ public class ReturnManifest implements Persistable<String> {
     @Override
     public boolean isNew() {
         return this.isNewEntity;
+    }
+
+    public ReturnManifest markNotNew() {
+        this.isNewEntity = false;
+        return this;
     }
 }
