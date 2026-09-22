@@ -27,12 +27,8 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
-      # 4. Step 1: Run fast Service Unit Tests first
-      - name: Run Service Unit Tests
-        run: ./gradlew :returns-service:test --tests "com.grangloria.returns.service.*"
-
-      # 5. Step 2: Run Full Test Suite across returns-service
-      - name: Run Full Test Suite
+      # 4. Run Returns Service Test Suite
+      - name: Test Returns Service
         run: ./gradlew :returns-service:test
 
       # Carrier Service
@@ -47,7 +43,7 @@ jobs:
       # - name: Test Notification Service
       #   run: ./gradlew :notification-service:test
 
-      # 6. Step 3: Upload JUnit HTML Test Reports as CI Artifacts
+      # 5. Upload JUnit HTML Test Reports as CI Artifacts
       - name: Upload Test Report
         if: always()
         uses: actions/upload-artifact@v4
