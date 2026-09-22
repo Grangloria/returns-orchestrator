@@ -36,16 +36,16 @@ jobs:
         run: ./gradlew :returns-service:test
 
       # Carrier Service
-    # - name: Test Carrier Service
-    #   run: ./gradlew :carrier-service:test
+      # - name: Test Carrier Service
+      #   run: ./gradlew :carrier-service:test
 
       # Inventory Service
-    # - name: Test Inventory Service
-    #   run: ./gradlew :inventory-service:test
+      # - name: Test Inventory Service
+      #   run: ./gradlew :inventory-service:test
 
       # Notification Service
-    # - name: Test Notification Service
-    #   run: ./gradlew :notification-service:test
+      # - name: Test Notification Service
+      #   run: ./gradlew :notification-service:test
 
       # 6. Step 3: Upload JUnit HTML Test Reports as CI Artifacts
       - name: Upload Test Report
