@@ -23,9 +23,9 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'
 
-      # 3. Ensure Gradle Wrapper executable bit is set
+      # 3. Grant execute permission for Gradlew
       - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+        run: chmod +x ./gradlew
 
       # 4. Step 1: Run fast Service Unit Tests first
       - name: Run Service Unit Tests
