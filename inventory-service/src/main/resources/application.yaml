@@ -35,7 +35,7 @@ spring:
     consumer:
       group-id: inventory-service-group
       auto-offset-reset: earliest
-      key-deserializer: org.apache.kafka.common.serialization.ErrorHandlingDeserializer
+      key-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
       properties:
         spring.deserializer.key.delegate.class: org.apache.kafka.common.serialization.StringDeserializer
