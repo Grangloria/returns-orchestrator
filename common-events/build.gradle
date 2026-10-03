@@ -1,0 +1,18 @@
+plugins {
+    id 'java-library'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Jackson annotations for record JSON serialization
+    api 'com.fasterxml.jackson.core:jackson-annotations:2.16.1'
+}
