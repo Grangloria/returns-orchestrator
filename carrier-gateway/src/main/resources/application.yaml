@@ -3,9 +3,7 @@ server:
 
 kafka:
   topics:
-    # Consumed Events
     return-initiated: ${KAFKA_TOPIC_RETURN_INITIATED:returns.order.initiated.v1}
-    # Produced Events
     return-label-ready: ${KAFKA_TOPIC_RETURN_LABEL_READY:returns.label.ready.v1}
 
 spring:
@@ -27,7 +25,9 @@ spring:
       properties:
         spring.deserializer.key.delegate.class: org.apache.kafka.common.serialization.StringDeserializer
         spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
-        spring.json.trusted.packages: "com.returns.common.event"
+        spring.json.trusted.packages: "*"
+        spring.json.use.type.headers: false
+        spring.json.value.default.type: "com.returns.common.event.ReturnInitiatedEvent"
 
 logging:
   level:

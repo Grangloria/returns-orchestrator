@@ -4,5 +4,6 @@ public record LabelRequest(
         String customerEmail,
         String orderId,
         String customerZip,
-        int quantity
+        int quantity,
+        String sku
 ) {}

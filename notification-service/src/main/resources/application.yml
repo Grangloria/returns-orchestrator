@@ -3,7 +3,6 @@ server:
 
 kafka:
   topics:
-    # Consumed Events for Customer Alerts
     return-initiated: ${KAFKA_TOPIC_RETURN_INITIATED:returns.order.initiated.v1}
     return-label-ready: ${KAFKA_TOPIC_RETURN_LABEL_READY:returns.label.ready.v1}
     refund-completed: ${KAFKA_TOPIC_REFUND_COMPLETED:returns.refund.completed.v1}
@@ -33,11 +32,31 @@ spring:
       properties:
         spring.deserializer.key.delegate.class: org.apache.kafka.common.serialization.StringDeserializer
         spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
-        spring.json.trusted.packages: "com.returns.common.event"
+        spring.json.trusted.packages: "*"
+        spring.json.use.type.headers: false
+        spring.json.value.default.type: "com.returns.common.event.ReturnLabelReadyEvent"
 
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+logging:
+  level:
+    root: INFO
+    com.grangloria.notification: DEBUG
+  file:
+    name: "logs/notification-service.log"
+
+resilience4j:
+  retry:
+    instances:
+      emailServiceRetry:
+        max-attempts: 3
+        wait-duration: 500ms
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - org.springframework.mail.MailException
 
 management:
   endpoints:
@@ -50,18 +69,3 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
-
-logging:
-  file:
-    name: "logs/notification-service.log"
-
-resilience4j:
-  retry:
-    instances:
-      emailServiceRetry: # Referenced in Java via @Retry(name = "emailServiceRetry")
-        max-attempts: 3
-        wait-duration: 500ms
-        enable-exponential-backoff: true
-        exponential-backoff-multiplier: 2
-        retry-exceptions:
-          - org.springframework.mail.MailException

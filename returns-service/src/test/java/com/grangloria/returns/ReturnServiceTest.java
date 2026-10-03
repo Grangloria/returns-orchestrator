@@ -4,8 +4,8 @@ import com.grangloria.returns.dto.request.ReturnRequest;
 import com.grangloria.returns.dto.response.ReturnResponse;
 import com.grangloria.returns.entity.ReturnManifest;
 import com.grangloria.returns.entity.ReturnState;
-import com.grangloria.returns.event.ReturnInitiatedEvent;
-import com.grangloria.returns.event.ReturnLabelReadyEvent;
+import com.returns.common.event.ReturnInitiatedEvent;
+import com.returns.common.event.ReturnLabelReadyEvent;
 import com.grangloria.returns.exception.ReturnNotFoundException;
 import com.grangloria.returns.messaging.publisher.ReturnInitiatedEventPublisher;
 import com.grangloria.returns.messaging.publisher.ReturnLabelReadyEventPublisher;
@@ -21,6 +21,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -118,10 +119,22 @@ class ReturnServiceTest {
     @Test
     @DisplayName("handleLabelGenerated - Should transition status to LABEL_READY, save manifest, and publish event")
     void handleLabelGenerated_Success() {
-        ReturnLabelReadyEvent incomingEvent = new ReturnLabelReadyEvent("ORD-1001", "customer@example.com", "https://shipping.com/label123.pdf");
+        ReturnLabelReadyEvent incomingEvent = new ReturnLabelReadyEvent(
+                "RET-ORD-1001",
+                "ORD-1001",
+                "customer@example.com",
+                "TRK-123456",
+                "https://shipping.com/label123.pdf",
+                "MOCK-CARRIER",
+                "SKU-8899",
+                1,
+                Instant.now()
+        );
 
         ReturnManifest updatedManifest = ReturnManifest.builder()
                 .orderId("ORD-1001")
+                .sku("SKU-8899")
+                .quantity(1)
                 .customerEmail("customer@example.com")
                 .status(ReturnState.LABEL_READY)
                 .labelUrl("https://shipping.com/label123.pdf")
@@ -143,7 +156,17 @@ class ReturnServiceTest {
     @Test
     @DisplayName("handleLabelGenerated - Should throw ReturnNotFoundException when order does not exist")
     void handleLabelGenerated_NotFound() {
-        ReturnLabelReadyEvent incomingEvent = new ReturnLabelReadyEvent("ORD-9999", "customer@example.com", "https://shipping.com/label123.pdf");
+        ReturnLabelReadyEvent incomingEvent = new ReturnLabelReadyEvent(
+                "RET-ORD-9999",
+                "ORD-9999",
+                "customer@example.com",
+                "TRK-123456",
+                "https://shipping.com/label123.pdf",
+                "MOCK-CARRIER",
+                "SKU-8899",
+                1,
+                Instant.now()
+        );
 
         when(repository.findByOrderId("ORD-9999")).thenReturn(Mono.empty());
 
@@ -161,9 +184,18 @@ class ReturnServiceTest {
     @Test
     @DisplayName("handleLabelGenerated - Should throw IllegalStateException on invalid state transition")
     void handleLabelGenerated_InvalidStateTransition() {
-        ReturnLabelReadyEvent incomingEvent = new ReturnLabelReadyEvent("ORD-1001", "customer@example.com", "https://shipping.com/label123.pdf");
+        ReturnLabelReadyEvent incomingEvent = new ReturnLabelReadyEvent(
+                "RET-ORD-1001",
+                "ORD-1001",
+                "customer@example.com",
+                "TRK-123456",
+                "https://shipping.com/label123.pdf",
+                "MOCK-CARRIER",
+                "SKU-8899",
+                1,
+                Instant.now()
+        );
 
-        // Set manifest status to a state that cannot transition to LABEL_READY (e.g., COMPLETED or CANCELLED)
         sampleManifest.setStatus(ReturnState.COMPLETED);
 
         when(repository.findByOrderId("ORD-1001")).thenReturn(Mono.just(sampleManifest));

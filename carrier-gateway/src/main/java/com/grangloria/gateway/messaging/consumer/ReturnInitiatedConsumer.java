@@ -1,7 +1,7 @@
 package com.grangloria.gateway.messaging.consumer;
 
 import com.grangloria.gateway.dto.request.LabelRequest;
-import com.grangloria.gateway.event.ReturnInitiatedEvent;
+import com.returns.common.event.ReturnInitiatedEvent;
 import com.grangloria.gateway.service.CarrierGatewayService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,11 +22,17 @@ public class ReturnInitiatedConsumer {
     public void consume(ReturnInitiatedEvent event) {
         log.info("[CARRIER-GATEWAY-CONSUMER] Consumed ReturnInitiatedEvent for Order: [{}]", event.orderId());
 
-        LabelRequest labelRequest = new LabelRequest(event.customerEmail(), event.orderId(), event.zipCode(), event.quantity());
+        LabelRequest labelRequest = new LabelRequest(
+                event.customerEmail(),
+                event.orderId(),
+                event.zipCode(),
+                event.quantity(),
+                event.sku()
+        );
 
         carrierGatewayService.processCarrierLabelCreation(labelRequest)
                 .subscribe(
-                        null,
+                        labelResponse -> log.info("[CARRIER-GATEWAY-CONSUMER] Successfully created return label for Order: [{}]", event.orderId()),
                         error -> log.error("[CARRIER-GATEWAY-ERROR] Failed generating label for Order: [{}]. Reason: {}",
                                 event.orderId(), error.getMessage())
                 );

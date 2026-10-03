@@ -21,6 +21,16 @@ spring:
       initial-size: 5
       max-size: 20
 
+  # Flyway manages database schema initialization safely on startup via JDBC
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: "0"
+    url: ${SPRING_FLYWAY_URL:jdbc:sqlserver://localhost:1433;databaseName=inventory_db;encrypt=true;trustServerCertificate=true}
+    user: ${SPRING_R2DBC_USERNAME:sa}
+    password: ${DB_PASSWORD:Hayeja123!}
+    locations: classpath:db/migration
+
   sql:
     init:
       mode: never

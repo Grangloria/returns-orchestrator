@@ -1,7 +1,7 @@
 package com.grangloria.gateway.messaging.producer;
 
 import com.grangloria.gateway.config.KafkaTopicProperties;
-import com.grangloria.gateway.event.ReturnLabelReadyEvent;
+import com.returns.common.event.ReturnLabelReadyEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;

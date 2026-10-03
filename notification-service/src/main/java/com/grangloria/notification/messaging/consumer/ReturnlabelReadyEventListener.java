@@ -1,27 +1,24 @@
 package com.grangloria.notification.messaging.consumer;
 
-import com.grangloria.notification.event.ReturnLabelReadyEvent;
+import com.returns.common.event.ReturnLabelReadyEvent;
 import com.grangloria.notification.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
 @Slf4j
-@Service
+@Component
 @RequiredArgsConstructor
 public class ReturnlabelReadyEventListener {
 
     private final NotificationService notificationService;
 
     @KafkaListener(
-            topics = "#{@kafkaTopicProperties.getReturnLabelReady()}",
+            topics = "${kafka.topics.return-label-ready:returns.label.ready.v1}",
             groupId = "${spring.kafka.consumer.group-id:notification-group}"
     )
-    public void handleReturnLabelReady(ConsumerRecord<String, ReturnLabelReadyEvent> record) {
-        ReturnLabelReadyEvent event = record.value();
-
+    public void handleReturnLabelReady(ReturnLabelReadyEvent event) {
         if (event == null) {
             log.warn("[NOTIFICATION-SERVICE] Received an empty or un-parsable Kafka payload envelope.");
             return;

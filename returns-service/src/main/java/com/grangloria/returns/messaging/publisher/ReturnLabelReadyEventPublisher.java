@@ -1,6 +1,6 @@
 package com.grangloria.returns.messaging.publisher;
 
-import com.grangloria.returns.event.ReturnLabelReadyEvent;
+import com.returns.common.event.ReturnLabelReadyEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;

@@ -1,6 +1,6 @@
 package com.grangloria.returns.messaging.consumer;
 
-import com.grangloria.returns.event.ReturnLabelReadyEvent;
+import com.returns.common.event.ReturnLabelReadyEvent;
 import com.grangloria.returns.service.ReturnService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

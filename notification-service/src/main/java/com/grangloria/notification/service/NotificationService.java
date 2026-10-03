@@ -1,6 +1,7 @@
 package com.grangloria.notification.service;
 
-import com.grangloria.notification.event.ReturnLabelReadyEvent;
+import com.returns.common.event.RefundCompletedEvent;
+import com.returns.common.event.ReturnLabelReadyEvent;
 import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.retry.RetryRegistry;
 import lombok.RequiredArgsConstructor;
@@ -53,6 +54,39 @@ public class NotificationService {
                     event.customerEmail(), event.orderId(), e.getMessage());
 
             // Re-throw exception so the calling Kafka listener triggers its error handler / DLT workflow
+            throw e;
+        }
+    }
+
+    public void sendRefundCompletedEmail(RefundCompletedEvent event) {
+        Retry emailRetry = retryRegistry.retry("emailServiceRetry");
+
+        Runnable decoratedEmailTask = Retry.decorateRunnable(emailRetry, () -> {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom("james.hayes@grangloria.com");
+            message.setTo(event.customerEmail());
+            message.setSubject("Refund Completed - Return #" + event.returnId());
+
+            String body = String.format(
+                    "Hello,\n\n" +
+                            "Great news! Your refund for Return ID %s has been completed.\n" +
+                            "Transaction ID: %s\n" +
+                            "Amount Refunded: $%.2f\n\n" +
+                            "Thank you for shopping with Grangloria!",
+                    event.returnId(), event.transactionId(), event.amount()
+            );
+
+            message.setText(body);
+            log.info("[EMAIL-SERVICE] Dispatching refund completed email to [{}]", event.customerEmail());
+            mailSender.send(message);
+        });
+
+        try {
+            decoratedEmailTask.run();
+            log.info("[EMAIL-SERVICE] Confirmation email dispatched successfully to [{}]", event.customerEmail());
+        } catch (Exception e) {
+            log.error("[EMAIL-SERVICE] Retries exhausted for Return ID: [{}]. Error: {}",
+                    event.returnId(), e.getMessage());
             throw e;
         }
     }

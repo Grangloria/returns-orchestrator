@@ -31,19 +31,24 @@ public class CarrierSimulatorListener {
             groupId = "${spring.kafka.consumer.group-id}"
     )
     public void handleLabelReady(ReturnLabelReadyEvent event) {
-        System.out.printf("[CARRIER SIMULATOR] Label generated for Return ID: %s. Simulating 5-second transit delay...%n", event.returnId());
+        // Fall back to orderId if returnId was not populated in the event
+        String effectiveReturnId = (event.returnId() != null && !event.returnId().isBlank())
+                ? event.returnId()
+                : "RET-" + (event.orderId() != null ? event.orderId() : "UNKNOWN");
+
+        System.out.printf("[CARRIER SIMULATOR] Label generated for Return ID: %s. Simulating 5-second transit delay...%n", effectiveReturnId);
 
         scheduler.schedule(() -> {
             PackageReceivedEvent receivedEvent = new PackageReceivedEvent(
-                    event.returnId(),
+                    effectiveReturnId,
                     event.orderId(),
                     event.sku(),
                     event.quantity(),
                     Instant.now()
             );
 
-            kafkaTemplate.send(packageReceivedTopic, event.returnId(), receivedEvent);
-            System.out.printf("[CARRIER SIMULATOR] Package delivered to warehouse dock for Return ID: %s. Emitted 'package-received'%n", event.returnId());
+            kafkaTemplate.send(packageReceivedTopic, effectiveReturnId, receivedEvent);
+            System.out.printf("[CARRIER SIMULATOR] Package delivered to warehouse dock for Return ID: %s. Emitted 'package-received'%n", effectiveReturnId);
         }, 5, TimeUnit.SECONDS);
     }
 }

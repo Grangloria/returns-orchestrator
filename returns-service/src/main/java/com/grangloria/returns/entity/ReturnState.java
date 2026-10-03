@@ -14,7 +14,7 @@ public enum ReturnState {
     LABEL_READY {
         @Override
         public Set<ReturnState> nextValidStates() {
-            return Set.of(IN_TRANSIT, CANCELLED);
+            return Set.of(IN_TRANSIT, RECEIVED, CANCELLED);
         }
     },
 
@@ -60,15 +60,17 @@ public enum ReturnState {
         }
     };
 
+
     /**
      * Defines allowed downstream transitions
      */
     public abstract Set<ReturnState> nextValidStates();
 
     /**
-     * Guard method to check if a state transition is legal
+     * Guard method to check if a state transition is legal.
+     * Allows same-state transitions (idempotency) or explicit next states.
      */
     public boolean canTransitionTo(ReturnState targetState) {
-        return nextValidStates().contains(targetState);
+        return this == targetState || nextValidStates().contains(targetState);
     }
 }

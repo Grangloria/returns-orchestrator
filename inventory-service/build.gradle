@@ -55,6 +55,15 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'io.micrometer:micrometer-tracing-bridge-brave'
     implementation 'io.micrometer:micrometer-registry-prometheus'
+
+    // R2DBC (Reactive Runtime)
+    implementation 'org.springframework.boot:spring-boot-starter-data-r2dbc'
+    implementation 'io.r2dbc:r2dbc-mssql'
+
+    // Flyway + JDBC (Startup Schema Migration)
+    implementation 'org.flywaydb:flyway-core'
+    implementation 'org.flywaydb:flyway-sqlserver'
+    runtimeOnly 'com.microsoft.sqlserver:mssql-jdbc'
 }
 
 // Keep this so Gradle knows exactly where to look

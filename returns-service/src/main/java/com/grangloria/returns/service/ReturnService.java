@@ -4,8 +4,9 @@ import com.grangloria.returns.dto.request.ReturnRequest;
 import com.grangloria.returns.dto.response.ReturnResponse;
 import com.grangloria.returns.entity.ReturnManifest;
 import com.grangloria.returns.entity.ReturnState;
-import com.grangloria.returns.event.ReturnInitiatedEvent;
-import com.grangloria.returns.event.ReturnLabelReadyEvent;
+import com.returns.common.event.PackageReceivedEvent;
+import com.returns.common.event.ReturnInitiatedEvent;
+import com.returns.common.event.ReturnLabelReadyEvent;
 import com.grangloria.returns.exception.ReturnNotFoundException;
 import com.grangloria.returns.messaging.publisher.ReturnInitiatedEventPublisher;
 import com.grangloria.returns.messaging.publisher.ReturnLabelReadyEventPublisher;
@@ -13,9 +14,9 @@ import com.grangloria.returns.repository.ManifestRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Mono;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 
 @Slf4j
@@ -35,7 +36,6 @@ public class ReturnService {
                 .flatMap(saved -> {
                     log.info("[RETURN-SERVICE-KAFKA] Broadcasting ReturnInitiatedEvent downstream for Order ID: [{}]", request.orderId());
 
-                    // Publish the event safely inside flatMap
                     initiatedPublisher.publishReturnInitiatedEvent(
                             new ReturnInitiatedEvent(
                                     request.orderId(),
@@ -63,12 +63,20 @@ public class ReturnService {
                 event.orderId(), event.labelUrl());
 
         return repository.findByOrderId(event.orderId())
-                .map(ReturnManifest::markNotNew) // Ensures R2DBC issues an SQL UPDATE
+                .map(ReturnManifest::markNotNew)
                 .switchIfEmpty(Mono.error(new ReturnNotFoundException(event.orderId())))
                 .flatMap(manifest -> {
                     log.info("[RETURN-SERVICE-CONSUMER] Found manifest for Order ID: [{}]. Current status: [{}]",
                             manifest.getOrderId(), manifest.getStatus());
 
+                    // Idempotent Guard: If already in LABEL_READY state, complete silently
+                    if (manifest.getStatus() == ReturnState.LABEL_READY) {
+                        log.warn("[RETURN-SERVICE-CONSUMER] Order [{}] is already in LABEL_READY state. Skipping duplicate event.",
+                                event.orderId());
+                        return Mono.empty();
+                    }
+
+                    // State Machine Validation
                     if (!manifest.getStatus().canTransitionTo(ReturnState.LABEL_READY)) {
                         return Mono.error(new IllegalStateException(
                                 String.format("Invalid state transition from %s to LABEL_READY for Order: [%s]",
@@ -82,14 +90,45 @@ public class ReturnService {
                     return repository.save(manifest);
                 })
                 .doOnSuccess(updated -> {
-                    log.info("[RETURN-SERVICE-DATABASE] ✅ SUCCESS: Manifest state permanently updated to LABEL_READY for Order: [{}]", updated.getOrderId());
+                    if (updated != null) {
+                        log.info("[RETURN-SERVICE-DATABASE] ✅ SUCCESS: Manifest state permanently updated to LABEL_READY for Order: [{}]",
+                                updated.getOrderId());
+                    }
+                })
+                .doOnError(err -> log.error("[RETURN-SERVICE-DATABASE] ❌ FAILED: Database update failed for Order ID: [{}]. Cause: ",
+                        event.orderId(), err))
+                .then();
+    }
 
-                    ReturnLabelReadyEvent notificationEvent = new ReturnLabelReadyEvent(
-                            updated.getOrderId(),
-                            updated.getCustomerEmail(),
-                            event.labelUrl()
-                    );
-                    labelReadyPublisher.publishReturnLabelReadyEvent(notificationEvent);
+    public Mono<Void> handlePackageReceived(PackageReceivedEvent event) {
+        log.info("[RETURN-SERVICE-CONSUMER] Attempting database state transition to RECEIVED for Order ID: [{}]",
+                event.orderId());
+
+        return repository.findByOrderId(event.orderId())
+                .map(ReturnManifest::markNotNew)
+                .switchIfEmpty(Mono.error(new ReturnNotFoundException(event.orderId())))
+                .flatMap(manifest -> {
+                    if (manifest.getStatus() == ReturnState.RECEIVED) {
+                        log.info("[RETURN-SERVICE-CONSUMER] Order [{}] is already in RECEIVED state. Skipping duplicate event.",
+                                event.orderId());
+                        return Mono.empty();
+                    }
+
+                    if (!manifest.getStatus().canTransitionTo(ReturnState.RECEIVED)) {
+                        return Mono.error(new IllegalStateException(
+                                String.format("Invalid state transition from %s to RECEIVED for Order: [%s]",
+                                        manifest.getStatus(), event.orderId())
+                        ));
+                    }
+
+                    manifest.setStatus(ReturnState.RECEIVED);
+                    return repository.save(manifest);
+                })
+                .doOnSuccess(updated -> {
+                    if (updated != null) {
+                        log.info("[RETURN-SERVICE-DATABASE] ✅ SUCCESS: Manifest state permanently updated to RECEIVED for Order: [{}]",
+                                updated.getOrderId());
+                    }
                 })
                 .doOnError(err -> log.error("[RETURN-SERVICE-DATABASE] ❌ FAILED: Database update failed for Order ID: [{}]. Cause: ",
                         event.orderId(), err))
