@@ -1,9 +1,15 @@
-package com.grangloria.returns.event;
+package com.returns.common.event;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import java.time.Instant;
 
 public record ReturnLabelReadyEvent(
-        @JsonProperty("orderId") String orderId,
-        @JsonProperty("customerEmail") String customerEmail,
-        @JsonProperty("labelUrl") String labelUrl
+        String returnId,
+        String orderId,
+        String customerEmail,
+        String trackingNumber,
+        String labelUrl,
+        String carrierName,
+        String sku,
+        int quantity,
+        Instant createdAt
 ) {}

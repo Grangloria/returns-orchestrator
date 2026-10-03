@@ -1,5 +1,6 @@
 package com.grangloria.inventory.exception;
 
+import com.grangloria.inventory.dto.ErrorResponseDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;

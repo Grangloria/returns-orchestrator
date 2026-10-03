@@ -1,4 +1,4 @@
-package com.grangloria.returns.event;
+package com.returns.common.event;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
