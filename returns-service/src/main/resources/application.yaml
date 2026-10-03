@@ -16,17 +16,33 @@ spring:
   application:
     name: return-service
 
+  # Database Host & Credentials Parameterization
+  datasource:
+    host: ${DB_HOST:localhost}
+    port: ${DB_PORT:1433}
+    name: ${DB_NAME:returns_db}
+
   r2dbc:
-    url: "r2dbc:mssql://localhost:1433/returns_db?encrypt=true&trustServerCertificate=true"
-    username: sa
-    password: ${DB_PASSWORD:Hayeja123!}
+    url: ${SPRING_R2DBC_URL:r2dbc:mssql://${spring.datasource.host}:${spring.datasource.port}/${spring.datasource.name}?encrypt=true&trustServerCertificate=true}
+    username: ${DB_USER:sa}
+    password: ${DB_PASS}
     pool:
-      initial-size: 5
-      max-size: 20
+      initial-size: ${R2DBC_POOL_INITIAL_SIZE:5}
+      max-size: ${R2DBC_POOL_MAX_SIZE:20}
+
+  # Flyway manages database schema initialization safely on startup via JDBC
+  flyway:
+    enabled: ${FLYWAY_ENABLED:true}
+    baseline-on-migrate: true
+    baseline-version: "0"
+    url: ${SPRING_FLYWAY_URL:jdbc:sqlserver://${spring.datasource.host}:${spring.datasource.port};databaseName=${spring.datasource.name};encrypt=true;trustServerCertificate=true}
+    user: ${DB_USER:sa}
+    password: ${DB_PASS}
+    locations: classpath:db/migration
 
   sql:
     init:
-      mode: never # Set to 'never' so schema.sql isn't re-run against existing tables on startup
+      mode: never
 
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
@@ -36,38 +52,35 @@ spring:
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 
     consumer:
-      group-id: return-service-group
+      group-id: ${KAFKA_CONSUMER_GROUP_ID:return-service-group}
       auto-offset-reset: earliest
       key-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
       properties:
         spring.deserializer.key.delegate.class: org.apache.kafka.common.serialization.StringDeserializer
         spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
-        spring.json.trusted.packages: "com.returns.common.event"
+        spring.json.trusted.packages: ${KAFKA_TRUSTED_PACKAGES:com.returns.common.event}
 
+# Logging Levels (Streams to stdout for Docker & AWS CloudWatch)
 logging:
   level:
-    root: INFO
-    org.springframework.data.r2dbc: DEBUG
-    com.grangloria.returns: DEBUG
-    org.springframework.r2dbc.core.R2dbcEntityTemplate: DEBUG
-    io.r2dbc.mssql: DEBUG
-  file:
-    name: "logs/return-service.log"
+    root: ${LOGGING_LEVEL_ROOT:INFO}
+    org.springframework.data.r2dbc: ${LOGGING_LEVEL_DATA_R2DBC:DEBUG}
+    org.springframework.r2dbc.core.R2dbcEntityTemplate: ${LOGGING_LEVEL_R2DBC_TEMPLATE:DEBUG}
+    io.r2dbc.mssql: ${LOGGING_LEVEL_MSSQL:DEBUG}
+    com.grangloria.returns: ${LOGGING_LEVEL_RETURNS:DEBUG}
 
+# Actuator & Prometheus Metrics Parity
 management:
   endpoints:
     web:
       exposure:
-        include: "prometheus,health,info"
+        include: "prometheus,health,info,metrics"
   endpoint:
     prometheus:
       enabled: true
+    health:
+      show-details: ${HEALTH_SHOW_DETAILS:always}
   metrics:
     tags:
       application: ${spring.application.name}
-  health:
-    defaults:
-      enabled: false
-    kafka:
-      enabled: false

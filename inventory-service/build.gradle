@@ -66,11 +66,6 @@ dependencies {
     runtimeOnly 'com.microsoft.sqlserver:mssql-jdbc'
 }
 
-// Keep this so Gradle knows exactly where to look
-springBoot {
-    mainClass = 'com.grangloria.returns.ReturnsApplication'
-}
-
 sourceSets {
     main {
         java {

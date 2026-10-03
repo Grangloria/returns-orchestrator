@@ -19,7 +19,7 @@ spring:
   r2dbc:
     url: ${SPRING_R2DBC_URL:r2dbc:mssql://${spring.datasource.host}:${spring.datasource.port}/${spring.datasource.name}?encrypt=true&trustServerCertificate=true}
     username: ${DB_USER:sa}
-    password: ${DB_PASS:YourStrongPassword123!}
+    password: ${DB_PASS}
     pool:
       initial-size: ${R2DBC_POOL_INITIAL_SIZE:5}
       max-size: ${R2DBC_POOL_MAX_SIZE:20}
@@ -31,7 +31,7 @@ spring:
     baseline-version: "0"
     url: ${SPRING_FLYWAY_URL:jdbc:sqlserver://${spring.datasource.host}:${spring.datasource.port};databaseName=${spring.datasource.name};encrypt=true;trustServerCertificate=true}
     user: ${DB_USER:sa}
-    password: ${DB_PASS:YourStrongPassword123!}
+    password: ${DB_PASS}
     locations: classpath:db/migration
 
   sql:
