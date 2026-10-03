@@ -4,9 +4,9 @@ server:
 kafka:
   topics:
     # Consumed Events
-    return-initiated: returns.order.initiated.v1
+    return-initiated: ${KAFKA_TOPIC_RETURN_INITIATED:returns.order.initiated.v1}
     # Produced Events
-    return-label-ready: returns.label.ready.v1
+    return-label-ready: ${KAFKA_TOPIC_RETURN_LABEL_READY:returns.label.ready.v1}
 
 spring:
   application:
@@ -22,16 +22,17 @@ spring:
     consumer:
       group-id: carrier-gateway-group
       auto-offset-reset: earliest
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      key-deserializer: org.apache.kafka.common.serialization.ErrorHandlingDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
       properties:
-        spring.json.trusted.packages: "com.grangloria.gateway.event,com.grangloria.returns.event"
-        spring.json.type.mapping: "com.grangloria.returns.event.ReturnInitiatedEvent:com.grangloria.gateway.event.ReturnInitiatedEvent"
+        spring.deserializer.key.delegate.class: org.apache.kafka.common.serialization.StringDeserializer
+        spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
+        spring.json.trusted.packages: "com.returns.common.event"
 
 logging:
   level:
     root: INFO
-    com.grangloria.gateway: DEBUG
+    com.returns.gateway: DEBUG
   file:
     name: "logs/carrier-gateway.log"
 

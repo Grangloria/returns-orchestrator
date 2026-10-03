@@ -3,11 +3,15 @@ server:
 
 kafka:
   topics:
-    return-label-ready: returns.label.ready.v1
+    # Consumed Events for Customer Alerts
+    return-initiated: ${KAFKA_TOPIC_RETURN_INITIATED:returns.order.initiated.v1}
+    return-label-ready: ${KAFKA_TOPIC_RETURN_LABEL_READY:returns.label.ready.v1}
+    refund-completed: ${KAFKA_TOPIC_REFUND_COMPLETED:returns.refund.completed.v1}
 
 spring:
   application:
     name: notification-service
+
   mail:
     host: ${SPRING_MAIL_HOST:localhost}
     port: 1025
@@ -17,16 +21,20 @@ spring:
           auth: false
           starttls:
             enable: false
+
   kafka:
-    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
     consumer:
-      group-id: notification-group
+      group-id: notification-service-group
       auto-offset-reset: earliest
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      key-deserializer: org.apache.kafka.common.serialization.ErrorHandlingDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
       properties:
-        spring.json.trusted.packages: "com.grangloria.*"
-        spring.json.type.mapping: "com.grangloria.gateway.event.ReturnLabelReadyEvent:com.grangloria.notification.event.ReturnLabelReadyEvent"
+        spring.deserializer.key.delegate.class: org.apache.kafka.common.serialization.StringDeserializer
+        spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
+        spring.json.trusted.packages: "com.returns.common.event"
+
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
@@ -50,10 +58,10 @@ logging:
 resilience4j:
   retry:
     instances:
-      emailServiceRetry: # The custom name of this specific retry policy. You reference this identifier in Java code via retryRegistry.retry("emailServiceRetry") or @Retry(name = "emailServiceRetry")
-        max-attempts: 3 # The total number of try attempts
-        wait-duration: 500ms # The initial delay before triggering the first retry
-        enable-exponential-backoff: true # Increases the delay duration progressively after each failed attempt instead of retrying at fixed intervals.
-        exponential-backoff-multiplier: 2 # This is the factor by which the wait time scales.
-        retry-exceptions: # This is the list of exceptions that will trigger a retry.
+      emailServiceRetry: # Referenced in Java via @Retry(name = "emailServiceRetry")
+        max-attempts: 3
+        wait-duration: 500ms
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
           - org.springframework.mail.MailException

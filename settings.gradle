@@ -6,3 +6,4 @@ include 'carrier-service'
 include 'notification-service'
 include 'inventory-service'
 include 'carrier-gateway'
+include 'common-events' // common kafka events
