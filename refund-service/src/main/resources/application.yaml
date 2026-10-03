@@ -1,14 +1,42 @@
 server:
   port: ${SERVER_PORT:8006}
 
+kafka:
+  topics:
+    inventory-restocked: ${KAFKA_TOPIC_INVENTORY_RESTOCKED:returns.inventory.restocked.v1}
+    refund-completed: ${KAFKA_TOPIC_REFUND_COMPLETED:returns.refund.completed.v1}
+
 spring:
   application:
     name: refund-service
 
+  # Database Host & Credentials Parameterization
+  datasource:
+    host: ${DB_HOST:localhost}
+    port: ${DB_PORT:1433}
+    name: ${DB_NAME:refund_db}
+
   r2dbc:
-    url: r2dbc:mssql://${DB_HOST:localhost}:${DB_PORT:1433}/${DB_NAME:refund_db}
+    url: ${SPRING_R2DBC_URL:r2dbc:mssql://${spring.datasource.host}:${spring.datasource.port}/${spring.datasource.name}?encrypt=true&trustServerCertificate=true}
     username: ${DB_USER:sa}
-    password: ${DB_PASS:YourStrongPassword123!} # Match the SA password defined in your docker-compose file
+    password: ${DB_PASS:YourStrongPassword123!}
+    pool:
+      initial-size: ${R2DBC_POOL_INITIAL_SIZE:5}
+      max-size: ${R2DBC_POOL_MAX_SIZE:20}
+
+  # Flyway manages database schema initialization safely on startup via JDBC
+  flyway:
+    enabled: ${FLYWAY_ENABLED:true}
+    baseline-on-migrate: true
+    baseline-version: "0"
+    url: ${SPRING_FLYWAY_URL:jdbc:sqlserver://${spring.datasource.host}:${spring.datasource.port};databaseName=${spring.datasource.name};encrypt=true;trustServerCertificate=true}
+    user: ${DB_USER:sa}
+    password: ${DB_PASS:YourStrongPassword123!}
+    locations: classpath:db/migration
+
+  sql:
+    init:
+      mode: never
 
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
@@ -18,16 +46,34 @@ spring:
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 
     consumer:
-      group-id: refund-service-group
+      group-id: ${KAFKA_CONSUMER_GROUP_ID:refund-service-group}
       auto-offset-reset: earliest
       key-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
       properties:
         spring.deserializer.key.delegate.class: org.apache.kafka.common.serialization.StringDeserializer
         spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
-        spring.json.trusted.packages: "com.returns.common.event"
+        spring.json.trusted.packages: ${KAFKA_TRUSTED_PACKAGES:com.returns.common.event}
 
-kafka:
-  topics:
-    inventory-restocked: ${KAFKA_TOPIC_INVENTORY_RESTOCKED:returns.inventory.restocked.v1}
-    refund-completed: ${KAFKA_TOPIC_REFUND_COMPLETED:returns.refund.completed.v1}
+# Actuator & Prometheus Metrics Parity
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "prometheus,health,info,metrics"
+  endpoint:
+    prometheus:
+      enabled: true
+    health:
+      show-details: ${HEALTH_SHOW_DETAILS:always}
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+# Logging Levels (Streams to stdout for Docker & AWS CloudWatch)
+logging:
+  level:
+    root: ${LOGGING_LEVEL_ROOT:INFO}
+    org.springframework.r2dbc: ${LOGGING_LEVEL_R2DBC:DEBUG}
+    org.springframework.data.r2dbc: ${LOGGING_LEVEL_DATA_R2DBC:DEBUG}
+    com.returns.refund: ${LOGGING_LEVEL_REFUND:DEBUG}

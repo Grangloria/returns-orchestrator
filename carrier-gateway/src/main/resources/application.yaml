@@ -18,7 +18,7 @@ spring:
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 
     consumer:
-      group-id: carrier-gateway-group
+      group-id: ${KAFKA_CONSUMER_GROUP_ID:carrier-gateway-group}
       auto-offset-reset: earliest
       key-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
@@ -31,10 +31,8 @@ spring:
 
 logging:
   level:
-    root: INFO
-    com.returns.gateway: DEBUG
-  file:
-    name: "logs/carrier-gateway.log"
+    root: ${LOGGING_LEVEL_ROOT:INFO}
+    com.returns.gateway: ${LOGGING_LEVEL_GATEWAY:DEBUG}
 
 management:
   endpoints:
@@ -49,12 +47,10 @@ management:
       application: ${spring.application.name}
   health:
     defaults:
-      enabled: false
-    kafka:
-      enabled: false
+      enabled: true
 
 carrier:
   client:
     base-url: ${CARRIER_SERVICE_URL:http://localhost:8003}
-    connect-timeout-ms: 3000
-    read-timeout-ms: 3000
+    connect-timeout-ms: ${CARRIER_CONNECT_TIMEOUT_MS:3000}
+    read-timeout-ms: ${CARRIER_READ_TIMEOUT_MS:3000}

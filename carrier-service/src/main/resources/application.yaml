@@ -1,8 +1,8 @@
 server:
   port: ${SERVER_PORT:8003}
   error:
-    include-message: always
-    include-binding-errors: always
+    include-message: ${SERVER_ERROR_INCLUDE_MESSAGE:always}
+    include-binding-errors: ${SERVER_ERROR_INCLUDE_BINDING_ERRORS:always}
 
 carrier:
   name: ${CARRIER_NAME:Grangloria Freight}
@@ -18,9 +18,11 @@ spring:
 springdoc:
   api-docs:
     path: /v3/api-docs
+    enabled: ${SPRINGDOC_ENABLED:true}
   swagger-ui:
     path: /swagger-ui.html
     operationsSorter: method
+    enabled: ${SWAGGER_UI_ENABLED:true}
 
 # Actuator & Prometheus Metrics
 management:
@@ -35,10 +37,8 @@ management:
     tags:
       application: ${spring.application.name}
 
-# Logging Levels & File Output
+# Logging Levels (Streams to stdout for Docker & CloudWatch)
 logging:
   level:
-    root: INFO
-    com.returns.carrier: DEBUG
-  file:
-    name: "logs/carrier-service.log"
+    root: ${LOGGING_LEVEL_ROOT:INFO}
+    com.returns.carrier: ${LOGGING_LEVEL_CARRIER:DEBUG}

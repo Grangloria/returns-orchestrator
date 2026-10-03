@@ -20,20 +20,32 @@ spring:
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 
     consumer:
-      group-id: carrier-simulator-group
+      group-id: ${KAFKA_CONSUMER_GROUP_ID:carrier-simulator-group}
       auto-offset-reset: earliest
       key-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
       properties:
         spring.deserializer.key.delegate.class: org.apache.kafka.common.serialization.StringDeserializer
         spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
-        spring.json.trusted.packages: "*"
+        spring.json.trusted.packages: ${KAFKA_TRUSTED_PACKAGES:*}
         spring.json.use.type.headers: false
         spring.json.value.default.type: "com.returns.common.event.ReturnLabelReadyEvent"
 
+# Actuator & Prometheus Metrics Parity
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "prometheus,health,info"
+  endpoint:
+    prometheus:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+# Logging Levels (Streams to stdout for Docker & AWS CloudWatch)
 logging:
   level:
-    root: INFO
-    com.returns.simulator: DEBUG
-  file:
-    name: "logs/mock-carrier-simulator.log"
+    root: ${LOGGING_LEVEL_ROOT:INFO}
+    com.returns.simulator: ${LOGGING_LEVEL_SIMULATOR:DEBUG}

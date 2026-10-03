@@ -11,28 +11,31 @@ spring:
   application:
     name: notification-service
 
+  # Mail Configuration (Mailpit locally -> Amazon SES in AWS)
   mail:
     host: ${SPRING_MAIL_HOST:localhost}
-    port: 1025
+    port: ${SPRING_MAIL_PORT:1025}
+    username: ${SPRING_MAIL_USERNAME:}
+    password: ${SPRING_MAIL_PASSWORD:}
     properties:
       mail:
         smtp:
-          auth: false
+          auth: ${SPRING_MAIL_SMTP_AUTH:false}
           starttls:
-            enable: false
+            enable: ${SPRING_MAIL_SMTP_STARTTLS_ENABLE:false}
 
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
 
     consumer:
-      group-id: notification-service-group
+      group-id: ${KAFKA_CONSUMER_GROUP_ID:notification-service-group}
       auto-offset-reset: earliest
       key-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
       properties:
         spring.deserializer.key.delegate.class: org.apache.kafka.common.serialization.StringDeserializer
         spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
-        spring.json.trusted.packages: "*"
+        spring.json.trusted.packages: ${KAFKA_TRUSTED_PACKAGES:*}
         spring.json.use.type.headers: false
         spring.json.value.default.type: "com.returns.common.event.ReturnLabelReadyEvent"
 
@@ -40,19 +43,18 @@ spring:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 
+# Logging Levels (Streams to stdout for Docker & AWS CloudWatch)
 logging:
   level:
-    root: INFO
-    com.grangloria.notification: DEBUG
-  file:
-    name: "logs/notification-service.log"
+    root: ${LOGGING_LEVEL_ROOT:INFO}
+    com.grangloria.notification: ${LOGGING_LEVEL_NOTIFICATION:DEBUG}
 
 resilience4j:
   retry:
     instances:
       emailServiceRetry:
-        max-attempts: 3
-        wait-duration: 500ms
+        max-attempts: ${RETRY_MAX_ATTEMPTS:3}
+        wait-duration: ${RETRY_WAIT_DURATION:500ms}
         enable-exponential-backoff: true
         exponential-backoff-multiplier: 2
         retry-exceptions:
