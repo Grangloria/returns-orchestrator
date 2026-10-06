@@ -7,6 +7,21 @@ services:
     ports:
       - "1025:1025" # SMTP server
       - "8025:8025" # Web UI
+    networks:
+      - returns-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: returns-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - returns-network
 
   # =============== SQL SERVER ==============
   sql-server:
@@ -25,6 +40,8 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+    networks:
+      - returns-network
 
   # =============== SQL SERVER INITIALIZER ==============
   sql-server-init:
@@ -52,6 +69,8 @@ services:
       ZOOKEEPER_TICK_TIME: 2000
     ports:
       - "2181:2181"
+    networks:
+      - returns-network
 
   # =============== KAFKA ==============
   kafka:
@@ -68,6 +87,8 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    networks:
+      - returns-network
 
   # =============== KAFKA WEB DASHBOARD ==============
   kafka-ui:
@@ -80,8 +101,29 @@ services:
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
     depends_on:
       - kafka
+    networks:
+      - returns-network
 
   # =============== MICROSERVICES STACK (APPS PROFILE) ==============
+
+  api-gateway:
+    profiles: ["apps"]
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: returns-api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - RETURNS_SERVICE_HOST=returns-service
+      - INVENTORY_SERVICE_HOST=inventory-service
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - returns-network
 
   returns-service:
     profiles: ["apps"]
@@ -103,6 +145,8 @@ services:
         condition: service_completed_successfully
       kafka:
         condition: service_started
+    networks:
+      - returns-network
 
   inventory-service:
     profiles: ["apps"]
@@ -124,6 +168,8 @@ services:
         condition: service_completed_successfully
       kafka:
         condition: service_started
+    networks:
+      - returns-network
 
   refund-service:
     profiles: ["apps"]
@@ -145,6 +191,8 @@ services:
         condition: service_completed_successfully
       kafka:
         condition: service_started
+    networks:
+      - returns-network
 
   notification-service:
     profiles: ["apps"]
@@ -161,6 +209,8 @@ services:
     depends_on:
       - kafka
       - mailpit
+    networks:
+      - returns-network
 
   carrier-service:
     profiles: ["apps"]
@@ -170,6 +220,8 @@ services:
     container_name: returns-carrier-service
     ports:
       - "8003:8003"
+    networks:
+      - returns-network
 
   carrier-gateway:
     profiles: ["apps"]
@@ -187,6 +239,8 @@ services:
         condition: service_started
       carrier-service:
         condition: service_started
+    networks:
+      - returns-network
 
   mock-carrier-simulator:
     profiles: ["apps"]
@@ -201,6 +255,8 @@ services:
     depends_on:
       kafka:
         condition: service_started
+    networks:
+      - returns-network
 
   # =============== APACHE CASSANDRA ==============
   cassandra:
@@ -213,6 +269,8 @@ services:
       - CASSANDRA_DC=datacenter1
     volumes:
       - cassandra-data:/var/lib/cassandra
+    networks:
+      - returns-network
 
   # =============== APACHE SPARK ==============
   spark-master:
@@ -223,6 +281,8 @@ services:
     ports:
       - "8085:8080"
       - "7077:7077"
+    networks:
+      - returns-network
 
   spark-worker:
     image: apache/spark:3.5.5
@@ -232,8 +292,23 @@ services:
       - spark-master
     ports:
       - "8086:8081"
+    networks:
+      - returns-network
 
   # ====== OBSERVABILITY STACK ======
+
+  jenkins:
+    image: jenkins/jenkins:lts-jdk21
+    container_name: jenkins-local
+    restart: unless-stopped
+    ports:
+      - "8081:8080"   # Host 8081 -> Container 8080
+      - "50000:50000" # Build agent port
+    volumes:
+      - jenkins-data:/var/jenkins_home
+    networks:
+      - returns-network
+
   prometheus:
     image: prom/prometheus:latest
     container_name: returns-prometheus
@@ -243,6 +318,8 @@ services:
       - "9090:9090"
     depends_on:
       - kafka
+    networks:
+      - returns-network
 
   grafana:
     image: grafana/grafana:latest
@@ -253,13 +330,35 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=admin
     depends_on:
       - prometheus
+    networks:
+      - returns-network
 
   loki:
     image: grafana/loki:2.9.4
     ports:
       - "3100:3100"
     command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - returns-network
+
+  # =============== KEYCLOAK IDENTITY PROVIDER ==============
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0.1
+    container_name: returns-keycloak
+    command: start-dev
+    ports:
+      - "8082:8080" # Host 8082 -> Container 8080 (avoids collision with gateway on 8080)
+    environment:
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
+    networks:
+      - returns-network
 
 volumes:
   mssql-data:
   cassandra-data:
+  jenkins-data:
+
+networks:
+  returns-network:
+    driver: bridge
