@@ -8,4 +8,5 @@ include 'inventory-service'
 include 'carrier-gateway'
 include 'mock-carrier-simulator'
 include 'refund-service'
+include 'api-gateway'
 include 'common-events' // common kafka events

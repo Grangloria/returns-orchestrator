@@ -1,0 +1,38 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.2.3'
+    id 'io.spring.dependency-management' version '1.1.4'
+}
+
+group = 'com.grangloria'
+version = '0.0.1-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation project(':common-events')
+
+    // Spring Cloud Gateway (Reactive WebFlux Engine)
+    implementation 'org.springframework.cloud:spring-cloud-starter-gateway'
+
+    // Spring Security 6 OAuth2 Resource Server (JWT Verification)
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+
+    // Reactive Redis for RequestRateLimiter GatewayFilter
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis-reactive'
+
+    // Actuator Telemetry & Prometheus Scraping
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'io.micrometer:micrometer-registry-prometheus'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'io.projectreactor:reactor-test'
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.cloud:spring-cloud-dependencies:2023.0.0"
+    }
+}
