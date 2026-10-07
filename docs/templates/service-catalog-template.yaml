@@ -1,0 +1,36 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+name: return-orchestrator-service
+description: Core reactive engine orchestrating return sagas across inventory, payment, and audit domains.
+title: Return Orchestrator Service
+tags:
+- java21
+- spring-webflux
+- reactor-kafka
+- tier-1
+annotations:
+backstage.io/techdocs-ref: dir:../../docs
+prometheus.io/scrape: "true"
+prometheus.io/path: "/actuator/prometheus"
+prometheus.io/port: "8080"
+grafana/dashboard-selector: "service=return-orchestrator-service"
+spec:
+type: service
+lifecycle: production
+owner: group:platform-engineering
+system: returns-orchestrator-platform
+
+# Contracts provided and consumed
+providesApis:
+- openapi-return-gateway-v1
+- asyncapi-return-events-v1
+consumesApis:
+- asyncapi-inventory-events-v1
+- asyncapi-payment-events-v1
+
+# Infrastructure Dependencies
+dependsOn:
+- resource:default/kafka-msk-cluster
+- resource:default/redis-elasticache-cluster
+- resource:default/postgres-rds-cluster

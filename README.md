@@ -11,7 +11,7 @@ The ecosystem features a restock-gated financial settlement pipeline, asynchrono
 
 Macro system design, event schemas, and trade-off records are maintained directly in the source repository:
 
-* 📖 **[System Architecture & Flow Diagram](docs/ARCHITECTURE.md)**: Visual Mermaid pipeline, physical container port bindings, database schemas, and Kafka event contracts.
+* 📖 **[System Architecture & Flow Diagram](docs/architecture/ARCHITECTURE.md)**: Visual Mermaid pipeline, physical container port bindings, database schemas, and Kafka event contracts.
 * 📜 **[Architecture Decision Records (ADRs)](docs/adr/)**: Documented design trade-offs (Transactional Outbox, R2DBC, Resilience4j, Redis Redlock, and DLT routing).
 
 ---
