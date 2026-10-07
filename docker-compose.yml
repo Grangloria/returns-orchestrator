@@ -312,10 +312,11 @@ services:
   prometheus:
     image: prom/prometheus:latest
     container_name: returns-prometheus
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
     ports:
       - "9090:9090"
+    volumes:
+      - ./infra/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./infra/monitoring/prometheus/rules:/etc/prometheus/rules
     depends_on:
       - kafka
     networks:
@@ -328,6 +329,8 @@ services:
       - "3000:3000"
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - ./infra/monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
     depends_on:
       - prometheus
     networks:
@@ -335,9 +338,21 @@ services:
 
   loki:
     image: grafana/loki:2.9.4
+    container_name: returns-loki
     ports:
       - "3100:3100"
     command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - returns-network
+
+  promtail:
+    image: grafana/promtail:2.9.4
+    container_name: returns-promtail
+    volumes:
+      - ./infra/monitoring/promtail/promtail-config.yml:/etc/promtail/config.yml
+      - /var/log:/var/log
+    depends_on:
+      - loki
     networks:
       - returns-network
 
