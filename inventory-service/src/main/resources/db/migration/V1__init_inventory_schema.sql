@@ -1,3 +1,6 @@
+-- Flyway Migration Script: Inventory Service (SQL Server)
+-- Creates the inventory_items table if absent and seeds default SKU records.
+
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'inventory_items')
 BEGIN
 CREATE TABLE inventory_items (
