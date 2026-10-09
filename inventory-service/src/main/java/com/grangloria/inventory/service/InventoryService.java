@@ -1,6 +1,8 @@
 package com.grangloria.inventory.service;
 
 import com.grangloria.inventory.entity.InventoryItem;
+import com.grangloria.inventory.exception.InventoryException;
+import com.grangloria.inventory.exception.ItemNotFoundException;
 import com.grangloria.inventory.repository.InventoryRepository;
 import com.returns.common.event.InventoryRestockedEvent;
 import com.returns.common.event.PackageReceivedEvent;
@@ -86,5 +88,10 @@ public class InventoryService {
                     item.setQuantity(newQuantity);
                     return inventoryRepository.save(item);
                 });
+    }
+
+    public Mono<InventoryItem> getItemBySku(String sku) {
+        return inventoryRepository.findBySku(sku)
+                .switchIfEmpty(Mono.error(new ItemNotFoundException("Inventory item not found for SKU: " + sku)));
     }
 }
