@@ -59,4 +59,7 @@ dependencies {
 
     // Resilience4j starter for Spring Boot 3
     implementation 'io.github.resilience4j:resilience4j-spring-boot3:2.2.0'
+
+    implementation 'org.redisson:redisson-spring-boot-starter:3.27.2'
+    implementation 'org.flywaydb:flyway-sqlserver'
 }

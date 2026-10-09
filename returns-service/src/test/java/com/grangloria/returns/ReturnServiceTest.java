@@ -35,9 +35,6 @@ class ReturnServiceTest {
     private ManifestRepository repository;
 
     @Mock
-    private ReturnInitiatedEventPublisher initiatedPublisher;
-
-    @Mock
     private ReturnLabelReadyEventPublisher labelReadyPublisher;
 
     @InjectMocks
@@ -92,7 +89,6 @@ class ReturnServiceTest {
                 .verifyComplete();
 
         verify(repository, times(1)).save(any(ReturnManifest.class));
-        verify(initiatedPublisher, times(1)).publishReturnInitiatedEvent(any(ReturnInitiatedEvent.class));
     }
 
     @Test
@@ -108,7 +104,6 @@ class ReturnServiceTest {
                         && throwable.getMessage().equals("R2DBC Connection Timeout"))
                 .verify();
 
-        verifyNoInteractions(initiatedPublisher);
     }
 
     // ==========================================

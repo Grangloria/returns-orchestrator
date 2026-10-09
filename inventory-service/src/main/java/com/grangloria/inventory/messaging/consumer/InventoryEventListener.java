@@ -11,6 +11,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 
 @Slf4j
@@ -40,7 +41,7 @@ public class InventoryEventListener {
 
         inventoryService.restockItem(event.sku(), event.quantity())
                 .flatMap(updatedItem -> {
-                    double calculatedRefund = 29.99 * event.quantity();
+                    BigDecimal calculatedRefund = BigDecimal.valueOf(29.99 * event.quantity());
                     String customerEmail = "customer@example.com";
 
                     // Aligns with the 6-argument constructor:
