@@ -24,7 +24,7 @@ spring:
     name: ${DB_NAME:refund_db}
 
   r2dbc:
-    url: ${SPRING_R2DBC_URL:r2dbc:mssql://${spring.datasource.host}:${spring.datasource.port}/${spring.datasource.name}?encrypt=true&trustServerCertificate=true}
+    url: ${SPRING_R2DBC_URL:r2dbc:mssql://${DB_HOST:localhost}:${DB_PORT:1433}/${DB_NAME:refund_db}?encrypt=true&trustServerCertificate=true}
     username: ${DB_USER:sa}
     password: ${DB_PASS}
     pool:
@@ -36,7 +36,7 @@ spring:
     enabled: ${FLYWAY_ENABLED:true}
     baseline-on-migrate: true
     baseline-version: "0"
-    url: ${SPRING_FLYWAY_URL:jdbc:sqlserver://${spring.datasource.host}:${spring.datasource.port};databaseName=${spring.datasource.name};encrypt=true;trustServerCertificate=true}
+    url: ${SPRING_FLYWAY_URL:jdbc:sqlserver://${DB_HOST:localhost}:${DB_PORT:1433};databaseName=${DB_NAME:refund_db};encrypt=true;trustServerCertificate=true}
     user: ${DB_USER:sa}
     password: ${DB_PASS}
     locations: classpath:db/migration
