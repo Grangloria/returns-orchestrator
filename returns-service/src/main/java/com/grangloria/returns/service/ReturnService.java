@@ -1,22 +1,24 @@
 package com.grangloria.returns.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.grangloria.returns.dto.request.ReturnRequest;
 import com.grangloria.returns.dto.response.ReturnResponse;
+import com.grangloria.returns.entity.OutboxEvent;
 import com.grangloria.returns.entity.ReturnManifest;
 import com.grangloria.returns.entity.ReturnState;
+import com.grangloria.returns.repository.OutboxRepository;
 import com.returns.common.event.PackageReceivedEvent;
 import com.returns.common.event.ReturnInitiatedEvent;
 import com.returns.common.event.ReturnLabelReadyEvent;
 import com.grangloria.returns.exception.ReturnNotFoundException;
-import com.grangloria.returns.messaging.publisher.ReturnInitiatedEventPublisher;
-import com.grangloria.returns.messaging.publisher.ReturnLabelReadyEventPublisher;
 import com.grangloria.returns.repository.ManifestRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Mono;
 
-import java.time.Instant;
 import java.time.LocalDateTime;
 
 @Slf4j
@@ -25,37 +27,67 @@ import java.time.LocalDateTime;
 public class ReturnService {
 
     private final ManifestRepository repository;
-    private final ReturnInitiatedEventPublisher initiatedPublisher;
-    private final ReturnLabelReadyEventPublisher labelReadyPublisher;
+    private final OutboxRepository outboxRepository;
+    private final ObjectMapper objectMapper;
 
+    @Transactional
     public Mono<ReturnResponse> processReturn(ReturnRequest request) {
         log.info("[RETURN-SERVICE-API] Ingesting incoming return request for Order: [{}], SKU: [{}]",
                 request.orderId(), request.sku());
 
-        return saveToDatabase(request)
+        ReturnManifest manifest = ReturnManifest.builder()
+                .orderId(request.orderId())
+                .sku(request.sku())
+                .item(request.item())
+                .quantity(request.quantity())
+                .customerEmail(request.customerEmail())
+                .zipCode(request.zipCode())
+                .reason(request.reason())
+                .status(ReturnState.INITIATED)
+                .createdAt(LocalDateTime.now())
+                .isNewEntity(true)
+                .build();
+
+        ReturnInitiatedEvent eventPayload = new ReturnInitiatedEvent(
+                request.orderId(),
+                request.sku(),
+                request.item(),
+                request.customerEmail(),
+                request.quantity(),
+                request.zipCode(),
+                request.reason()
+        );
+
+        return repository.save(manifest)
                 .flatMap(saved -> {
-                    log.info("[RETURN-SERVICE-KAFKA] Broadcasting ReturnInitiatedEvent downstream for Order ID: [{}]", request.orderId());
+                    log.info("[RETURN-SERVICE-DATABASE] Manifest audit record permanently persisted for Order ID: [{}]",
+                            saved.getOrderId());
 
-                    initiatedPublisher.publishReturnInitiatedEvent(
-                            new ReturnInitiatedEvent(
-                                    request.orderId(),
-                                    request.sku(),
-                                    request.item(),
-                                    request.customerEmail(),
-                                    request.quantity(),
-                                    request.zipCode(),
-                                    request.reason()
-                            )
-                    );
+                    try {
+                        String payloadJson = objectMapper.writeValueAsString(eventPayload);
+                        OutboxEvent outboxEvent = OutboxEvent.create(
+                                "RETURN",
+                                saved.getOrderId(),
+                                "RETURN_INITIATED",
+                                payloadJson
+                        );
 
-                    return Mono.just(new ReturnResponse(
-                            saved.getOrderId(),
-                            saved.getStatus().name(),
-                            System.currentTimeMillis()
-                    ));
+                        return outboxRepository.save(outboxEvent)
+                                .doOnSuccess(savedOutbox ->
+                                        log.info("[RETURN-SERVICE-OUTBOX] Outbox event [{}] staged atomically for Order ID: [{}]",
+                                                savedOutbox.id(), saved.getOrderId()))
+                                .thenReturn(saved);
+                    } catch (JsonProcessingException e) {
+                        return Mono.error(new RuntimeException("Failed to serialize ReturnInitiatedEvent for outbox", e));
+                    }
                 })
+                .map(saved -> new ReturnResponse(
+                        saved.getOrderId(),
+                        saved.getStatus().name(),
+                        System.currentTimeMillis()
+                ))
                 .doOnError(error -> log.error("[RETURN-SERVICE-ERROR] Operational pipeline friction encountered for Order: [{}]. Reason: {}",
-                        request.orderId(), error.getMessage(), error));
+            request.orderId(), error.getMessage(), error));
     }
 
     public Mono<Void> handleLabelGenerated(ReturnLabelReadyEvent event) {
@@ -133,27 +165,6 @@ public class ReturnService {
                 .doOnError(err -> log.error("[RETURN-SERVICE-DATABASE] ❌ FAILED: Database update failed for Order ID: [{}]. Cause: ",
                         event.orderId(), err))
                 .then();
-    }
-
-    private Mono<ReturnManifest> saveToDatabase(ReturnRequest request) {
-        ReturnManifest manifest = ReturnManifest.builder()
-                .orderId(request.orderId())
-                .sku(request.sku())
-                .item(request.item())
-                .quantity(request.quantity())
-                .customerEmail(request.customerEmail())
-                .zipCode(request.zipCode())
-                .reason(request.reason())
-                .status(ReturnState.INITIATED)
-                .createdAt(LocalDateTime.now())
-                .isNewEntity(true)
-                .build();
-
-        return repository.save(manifest)
-                .doOnSuccess(savedManifest -> log.info("[RETURN-SERVICE-DATABASE] Manifest audit record permanently persisted for Order ID: [{}]",
-                        savedManifest.getOrderId()))
-                .doOnError(error -> log.error("[RETURN-SERVICE-DATABASE-ERROR] Failed to persist manifest for Order ID: [{}]. Cause: ",
-                        request.orderId(), error));
     }
 
     public Mono<ReturnManifest> getReturnStatus(String orderId) {

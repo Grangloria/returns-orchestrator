@@ -7,7 +7,6 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 @Slf4j
-@Service
 public class ReturnLabelReadyEventPublisher {
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
