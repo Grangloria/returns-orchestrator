@@ -7,7 +7,6 @@ import com.grangloria.returns.entity.ReturnState;
 import com.returns.common.event.ReturnInitiatedEvent;
 import com.returns.common.event.ReturnLabelReadyEvent;
 import com.grangloria.returns.exception.ReturnNotFoundException;
-import com.grangloria.returns.messaging.publisher.ReturnInitiatedEventPublisher;
 import com.grangloria.returns.messaging.publisher.ReturnLabelReadyEventPublisher;
 import com.grangloria.returns.repository.ManifestRepository;
 import com.grangloria.returns.service.ReturnService;
