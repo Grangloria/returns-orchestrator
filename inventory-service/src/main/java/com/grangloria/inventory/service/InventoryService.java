@@ -13,6 +13,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 
 @Service
@@ -48,7 +49,7 @@ public class InventoryService {
                 })
                 .doOnSuccess(savedItem -> {
                     if (savedItem != null) {
-                        double refundAmount = 29.99 * event.quantity(); // Unit cost calculation
+                        BigDecimal refundAmount = BigDecimal.valueOf(29.99 * event.quantity()); // Unit cost calculation
 
                         InventoryRestockedEvent restockedEvent = new InventoryRestockedEvent(
                                 event.returnId() != null ? event.returnId() : "RET-" + event.orderId(),

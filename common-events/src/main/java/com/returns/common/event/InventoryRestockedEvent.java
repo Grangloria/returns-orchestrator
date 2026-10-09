@@ -1,6 +1,8 @@
 package com.returns.common.event;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+
+import java.math.BigDecimal;
 import java.time.Instant;
 
 public record InventoryRestockedEvent(
@@ -9,6 +11,6 @@ public record InventoryRestockedEvent(
         @JsonProperty("customerEmail") String customerEmail,
         @JsonProperty("sku") String sku,
         @JsonProperty("quantity") int quantity,
-        @JsonProperty("refundAmount") double refundAmount,
+        @JsonProperty("refundAmount") BigDecimal refundAmount,
         @JsonProperty("restockedAt") Instant restockedAt
 ) {}

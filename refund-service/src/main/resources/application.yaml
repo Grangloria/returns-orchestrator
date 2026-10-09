@@ -10,6 +10,13 @@ spring:
   application:
     name: refund-service
 
+  # Redis Configuration for Redlock Distributed Locking
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2000ms
+
   # Database Host & Credentials Parameterization
   datasource:
     host: ${DB_HOST:localhost}

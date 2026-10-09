@@ -1,4 +1,4 @@
-package com.grangloria.refund.listener;
+package com.grangloria.refund;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
