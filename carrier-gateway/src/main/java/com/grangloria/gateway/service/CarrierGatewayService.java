@@ -2,8 +2,8 @@ package com.grangloria.gateway.service;
 
 import com.grangloria.gateway.client.CarrierClient;
 import com.grangloria.gateway.dto.request.LabelRequest;
-import com.returns.common.event.ReturnLabelReadyEvent;
 import com.grangloria.gateway.messaging.producer.ReturnLabelReadyEventPublisher;
+import com.returns.common.event.ReturnLabelReadyEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -24,7 +24,7 @@ public class CarrierGatewayService {
         log.info("[CARRIER-GATEWAY-SERVICE] Requesting 3PL carrier label for Order: [{}]", request.orderId());
 
         return carrierClient.requestLabel(request)
-                .doOnSuccess(carrierResponse -> {
+                .flatMap(labelUrl -> {
                     log.info("[CARRIER-GATEWAY-SERVICE] Carrier label generated! Order ID: [{}]", request.orderId());
 
                     String returnId = "RET-" + request.orderId();
@@ -35,7 +35,7 @@ public class CarrierGatewayService {
                             request.orderId(),
                             request.customerEmail(),
                             trackingNumber,
-                            carrierResponse,
+                            labelUrl,
                             "MOCK-CARRIER",
                             request.sku(),
                             request.quantity(),
@@ -43,7 +43,7 @@ public class CarrierGatewayService {
                     );
 
                     labelGeneratedPublisher.publishReturnLabelReadyEvent(generatedEvent);
-                })
-                .then();
+                    return Mono.empty();
+                });
     }
 }

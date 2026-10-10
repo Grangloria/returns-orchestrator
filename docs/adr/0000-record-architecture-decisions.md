@@ -8,7 +8,7 @@
 ---
 
 ## 1. Context & Problem Statement
-As this reverse logistics ecosystem grows across 7 reactive microservices (`returns-service`, `inventory-service`, `carrier-gateway`, `carrier-service`, `mock-carrier-simulator`, `refund-service`, `notification-service`), technical decisions regarding persistence drivers, messaging patterns, fault isolation, and financial idempotency become complex.
+As this reverse logistics ecosystem grows across 7 reactive microservices (`returns-service`, `inventory-service`, `carrier-gateway`, `mock-external-carrier-api`, `mock-carrier-simulator`, `refund-service`, `notification-service`), technical decisions regarding persistence drivers, messaging patterns, fault isolation, and financial idempotency become complex.
 
 Without a lightweight, code-adjacent documentation system, the technical rationale behind critical design trade-offs risks being lost or reverted during future refactoring.
 

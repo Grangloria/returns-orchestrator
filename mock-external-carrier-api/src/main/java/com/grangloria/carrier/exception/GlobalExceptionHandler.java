@@ -1,5 +1,6 @@
 package com.grangloria.carrier.exception;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -9,6 +10,7 @@ import org.springframework.web.server.ServerWebExchange;
 import java.net.URI;
 import java.time.Instant;
 
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -16,6 +18,9 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleGenericException(
             Exception ex,
             ServerWebExchange exchange) {
+
+        log.error("Unhandled exception on path {}: {}",
+                exchange.getRequest().getPath().value(), ex.getMessage(), ex);
 
         ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
                 HttpStatus.INTERNAL_SERVER_ERROR,

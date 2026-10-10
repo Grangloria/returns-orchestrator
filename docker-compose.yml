@@ -232,12 +232,12 @@ services:
     networks:
       - returns-network
 
-  carrier-service:
+  mock-external-carrier-api:
     profiles: ["apps"]
     build:
-      context: ./carrier-service
+      context: ./mock-external-carrier-api
       dockerfile: Dockerfile
-    container_name: returns-carrier-service
+    container_name: returns-mock-external-carrier-api
     ports:
       - "8003:8003"
     networks:

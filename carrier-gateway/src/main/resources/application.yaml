@@ -5,6 +5,29 @@ kafka:
   topics:
     return-initiated: ${KAFKA_TOPIC_RETURN_INITIATED:returns.order.initiated.v1}
     return-label-ready: ${KAFKA_TOPIC_RETURN_LABEL_READY:returns.label.ready.v1}
+    carrier-label-dlt: ${KAFKA_TOPIC_CARRIER_LABEL_FAILED:returns.carrier-label.failed.v1.DLT}
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      mockExternalCarrierApi:
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50     # Open circuit if 50% of last 10 calls fail
+        waitDurationInOpenState: 10s # Pause calls for 10s before testing recovery
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+  retry:
+    instances:
+      mockExternalCarrierApi:
+        maxAttempts: 3
+        waitDuration: 500ms                # Initial delay before retry
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2    # Delays: 500ms -> 1000ms -> 2000ms
+        retryExceptions:
+          - org.springframework.web.client.ResourceAccessException
+          - org.springframework.web.client.HttpServerErrorException
 
 spring:
   application:
