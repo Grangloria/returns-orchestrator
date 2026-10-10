@@ -64,6 +64,11 @@ dependencies {
     implementation 'org.flywaydb:flyway-core'
     implementation 'org.flywaydb:flyway-sqlserver'
     runtimeOnly 'com.microsoft.sqlserver:mssql-jdbc'
+
+    // AWS SDK v2 BOM & DynamoDB
+    implementation platform('software.amazon.awssdk:bom:2.25.10')
+    implementation 'software.amazon.awssdk:dynamodb'
+    implementation 'software.amazon.awssdk:dynamodb-enhanced'
 }
 
 sourceSets {

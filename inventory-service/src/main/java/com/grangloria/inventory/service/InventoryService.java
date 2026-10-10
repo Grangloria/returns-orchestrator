@@ -1,20 +1,22 @@
 package com.grangloria.inventory.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.grangloria.inventory.entity.InventoryItem;
-import com.grangloria.inventory.exception.InventoryException;
+import com.grangloria.inventory.entity.OutboxEvent;
 import com.grangloria.inventory.exception.ItemNotFoundException;
 import com.grangloria.inventory.repository.InventoryRepository;
+import com.grangloria.inventory.repository.OutboxRepository;
 import com.returns.common.event.InventoryRestockedEvent;
 import com.returns.common.event.PackageReceivedEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDateTime;
 
 @Service
 public class InventoryService {
@@ -22,19 +24,22 @@ public class InventoryService {
     private static final Logger log = LoggerFactory.getLogger(InventoryService.class);
 
     private final InventoryRepository inventoryRepository;
-    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final OutboxRepository outboxRepository;
+    private final ObjectMapper objectMapper;
 
-    @Value("${kafka.topics.inventory-restocked:returns.inventory.restocked.v1}")
-    private String inventoryRestockedTopic;
-
-    public InventoryService(InventoryRepository inventoryRepository, KafkaTemplate<String, Object> kafkaTemplate) {
+    public InventoryService(InventoryRepository inventoryRepository,
+                            OutboxRepository outboxRepository,
+                            ObjectMapper objectMapper) {
         this.inventoryRepository = inventoryRepository;
-        this.kafkaTemplate = kafkaTemplate;
+        this.outboxRepository = outboxRepository;
+        this.objectMapper = objectMapper;
     }
 
     /**
-     * Handles package reception: restocks database inventory and emits InventoryRestockedEvent downstream to refund-service.
+     * Handles package reception: restocks database inventory and persists an OutboxMessage
+     * within a single reactive database transaction to avoid dual-writes.
      */
+    @Transactional
     public Mono<Void> restockAndEmitInventoryRestocked(PackageReceivedEvent event) {
         return inventoryRepository.findBySku(event.sku())
                 .switchIfEmpty(Mono.defer(() -> Mono.error(new IllegalArgumentException("SKU not found in database: " + event.sku()))))
@@ -47,24 +52,36 @@ public class InventoryService {
 
                     return inventoryRepository.save(item);
                 })
-                .doOnSuccess(savedItem -> {
-                    if (savedItem != null) {
-                        BigDecimal refundAmount = BigDecimal.valueOf(29.99 * event.quantity()); // Unit cost calculation
+                .flatMap(savedItem -> {
+                    BigDecimal refundAmount = BigDecimal.valueOf(29.99).multiply(BigDecimal.valueOf(event.quantity()));
 
-                        InventoryRestockedEvent restockedEvent = new InventoryRestockedEvent(
-                                event.returnId() != null ? event.returnId() : "RET-" + event.orderId(),
-                                event.orderId(),
-                                "customer@example.com",
-                                event.sku(),
-                                event.quantity(),
-                                refundAmount,
-                                Instant.now()
-                        );
+                    InventoryRestockedEvent restockedEvent = new InventoryRestockedEvent(
+                            event.returnId() != null ? event.returnId() : "RET-" + event.orderId(),
+                            event.orderId(),
+                            "customer@example.com",
+                            event.sku(),
+                            event.quantity(),
+                            refundAmount,
+                            Instant.now()
+                    );
 
-                        kafkaTemplate.send(inventoryRestockedTopic, event.orderId(), restockedEvent);
-                        log.info("[INVENTORY-SERVICE] Stock updated & InventoryRestockedEvent emitted for Order ID: [{}]", event.orderId());
+                    try {
+                        String payloadJson = objectMapper.writeValueAsString(restockedEvent);
+
+                        OutboxEvent outbox = new OutboxEvent();
+                        outbox.setAggregateType("InventoryItem");
+                        outbox.setAggregateId(event.sku());
+                        outbox.setType("INVENTORY_RESTOCKED");
+                        outbox.setPayload(payloadJson);
+                        outbox.setStatus("PENDING");
+                        outbox.setCreatedAt(LocalDateTime.now());
+
+                        return outboxRepository.save(outbox);
+                    } catch (Exception e) {
+                        return Mono.error(new RuntimeException("Failed to serialize Outbox event payload", e));
                     }
                 })
+                .doOnSuccess(outboxRecord -> log.info("[INVENTORY-SERVICE] Stock updated & Outbox message persisted for Order ID: [{}]", event.orderId()))
                 .then();
     }
 
