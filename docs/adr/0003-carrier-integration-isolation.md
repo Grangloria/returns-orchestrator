@@ -23,13 +23,13 @@ Integrating directly with third-party logistics carriers (FedEx, UPS, ABF Freigh
 1. **Direct Third-Party HTTP Calls from Core Orchestrator:** Violates domain boundaries and exposes `returns-service` to external API failures.
 2. **Dedicated Carrier Gateway + Mock API + Temporal Simulator:**
     * `carrier-gateway` (:8004): Internal logistics orchestrator wrapping WebClient calls with Resilience4j circuit breakers.
-    * `carrier-service` (:8003): Mock REST API simulating carrier bill-of-lading (BOL) generation and network faults.
+    * `mock-external-carrier-api` (:8003): Mock REST API simulating carrier bill-of-lading (BOL) generation and network faults.
     * `mock-carrier-simulator` (:8005): Asynchronous transit worker adding a 5-second delay before emitting `returns.package.received.v1`.
 
 ---
 
 ## 4. Decision Outcome
-**Chosen Option:** Option 2 — Decoupled Carrier Architecture (`carrier-gateway` + `carrier-service` + `mock-carrier-simulator`).
+**Chosen Option:** Option 2 — Decoupled Carrier Architecture (`carrier-gateway` + `mock-external-carrier-api` + `mock-carrier-simulator`).
 
 ---
 

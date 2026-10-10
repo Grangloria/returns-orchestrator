@@ -26,7 +26,7 @@ This project is structured as a **Multi-Module Gradle Platform** enforcing domai
 | **`returns-service`** | `:8000` | Azure SQL Edge (`returns_db`) | Ingress entry point & Saga Orchestrator. Executes R2DBC SQL inserts and Transactional Outbox publishing. |
 | **`inventory-service`** | `:8001` | Azure SQL Edge (`inventory_db`) | Warehouse intake worker that validates returned items, updates bin stock, and triggers the financial restock gate. |
 | **`notification-service`** | `:8002` | Redis (Deduplication) | Asynchronous communications worker dispatching customer receipts and routing system DLT alerts. |
-| **`carrier-service`** | `:8003` | Mock In-Memory | Mock 3rd-party logistics REST API simulating rate limits, carrier bill-of-lading (BOL), and network latency. |
+| **`mock-external-carrier-api`** | `:8003` | Mock In-Memory | Mock 3rd-party logistics REST API simulating rate limits, carrier bill-of-lading (BOL), and network latency. |
 | **`carrier-gateway`** | `:8004` | Azure SQL Edge | Logistics domain proxy wrapping external calls with Resilience4j circuit breakers and DLT fault routing. |
 | **`mock-carrier-simulator`** | `:8005` | Stateful Memory | Temporal transit worker simulating a 5-second asynchronous package scan/drop-off delay before emitting scan events. |
 | **`refund-service`** | `:8006` | Azure SQL Edge (`refund_db`) + Redis | Gated financial settlement engine. Enforces idempotency via Redis Redlock and appends R2DBC ledger credits. |

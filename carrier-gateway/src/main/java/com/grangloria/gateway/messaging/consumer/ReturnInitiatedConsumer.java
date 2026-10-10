@@ -30,11 +30,9 @@ public class ReturnInitiatedConsumer {
                 event.sku()
         );
 
-        carrierGatewayService.processCarrierLabelCreation(labelRequest)
-                .subscribe(
-                        labelResponse -> log.info("[CARRIER-GATEWAY-CONSUMER] Successfully created return label for Order: [{}]", event.orderId()),
-                        error -> log.error("[CARRIER-GATEWAY-ERROR] Failed generating label for Order: [{}]. Reason: {}",
-                                event.orderId(), error.getMessage())
-                );
+        // .block() propagates Mono.error() to Spring Kafka's CommonErrorHandler
+        carrierGatewayService.processCarrierLabelCreation(labelRequest).block();
+
+        log.info("[CARRIER-GATEWAY-CONSUMER] Successfully created return label for Order: [{}]", event.orderId());
     }
 }

@@ -15,14 +15,14 @@ spring:
     web-application-type: reactive
 
 # Springdoc OpenAPI / Swagger UI Configuration
-springdoc:
-  api-docs:
-    path: /v3/api-docs
-    enabled: ${SPRINGDOC_ENABLED:true}
-  swagger-ui:
-    path: /swagger-ui.html
-    operationsSorter: method
-    enabled: ${SWAGGER_UI_ENABLED:true}
+#springdoc:
+#  api-docs:
+#    path: /v3/api-docs
+#    enabled: ${SPRINGDOC_ENABLED:true}
+#  swagger-ui:
+#    path: /swagger-ui.html
+#    operationsSorter: method
+#    enabled: ${SWAGGER_UI_ENABLED:true}
 
 # Actuator & Prometheus Metrics
 management:

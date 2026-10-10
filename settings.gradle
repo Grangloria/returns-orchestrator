@@ -2,7 +2,7 @@ rootProject.name = 'returns-system'
 
 // These are the folders Gradle will look for
 include 'returns-service'
-include 'carrier-service'
+include 'mock-external-carrier-api'
 include 'notification-service'
 include 'inventory-service'
 include 'carrier-gateway'
