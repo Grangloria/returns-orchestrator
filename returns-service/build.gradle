@@ -58,6 +58,11 @@ dependencies {
 
     // Resilience4j starter for Spring Boot 3
     implementation 'io.github.resilience4j:resilience4j-spring-boot3:2.2.0'
+
+    // AWS SDK v2 BOM & DynamoDB
+    implementation platform('software.amazon.awssdk:bom:2.25.10')
+    implementation 'software.amazon.awssdk:dynamodb'
+    implementation 'software.amazon.awssdk:dynamodb-enhanced'
 }
 
 // Keep this so Gradle knows exactly where to look

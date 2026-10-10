@@ -45,6 +45,21 @@ services:
     networks:
       - returns-network
 
+  dynamodb-local:
+    image: amazon/dynamodb-local:latest
+    container_name: returns-dynamodb
+    restart: unless-stopped
+    ports:
+      - "8049:8000"
+    command: "-jar DynamoDBLocal.jar -sharedDb -dbPath ."
+    volumes:
+      - dynamodb_data:/home/dynamodblocal/data
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:8049 || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # =============== SQL SERVER INITIALIZER ==============
   sql-server-init:
     image: mcr.microsoft.com/azure-sql-edge:latest
@@ -370,19 +385,36 @@ services:
     image: quay.io/keycloak/keycloak:24.0.1
     container_name: returns-keycloak
     restart: unless-stopped
-    command: start-dev
+    command: start-dev --import-realm
     ports:
       - "8082:8080" # Host 8082 -> Container 8080 (avoids collision with gateway on 8080)
     environment:
       - KEYCLOAK_ADMIN=admin
       - KEYCLOAK_ADMIN_PASSWORD=admin
+    volumes:
+      - keycloak-data:/opt/keycloak/data
+      - ./infra/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json
     networks:
       - returns-network
+
+  dynamodb-admin:
+    image: aaronshaf/dynamodb-admin
+    container_name: returns-dynamodb-admin
+    restart: unless-stopped
+    ports:
+      - "8050:8001"
+    environment:
+      DYNAMO_ENDPOINT: http://dynamodb-local:8000
+      AWS_REGION: us-east-1
+    depends_on:
+      - dynamodb-local
 
 volumes:
   mssql-data:
   cassandra-data:
   jenkins-data:
+  dynamodb_data:
+  keycloak-data:
 
 networks:
   returns-network:

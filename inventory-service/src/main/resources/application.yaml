@@ -66,6 +66,14 @@ logging:
     org.springframework.data.r2dbc: ${LOGGING_LEVEL_DATA_R2DBC:DEBUG}
     com.returns.inventory: ${LOGGING_LEVEL_INVENTORY:DEBUG}
 
+aws:
+  region: ${AWS_REGION:us-east-1}
+  dynamodb:
+    endpoint: ${DYNAMODB_ENDPOINT:http://localhost:8000}
+  credentials:
+    access-key-id: ${AWS_ACCESS_KEY_ID:test}
+    secret-access-key: ${AWS_SECRET_ACCESS_KEY:test}
+
 management:
   endpoints:
     web:
