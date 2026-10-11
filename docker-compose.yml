@@ -409,6 +409,26 @@ services:
     depends_on:
       - dynamodb-local
 
+  localstack:
+    image: localstack/localstack:3.8.0
+    container_name: returns-localstack
+    restart: unless-stopped
+    ports:
+      - "4566:4566"
+    environment:
+      - AWS_DEFAULT_REGION=us-east-1
+    volumes:
+      - "./infra/localstack:/etc/localstack/init/ready.d"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+
+  customer-portal:
+    build:
+      context: ./customer-portal
+      dockerfile: Dockerfile
+    container_name: returns-customer-portal
+    ports:
+      - "5173:80" # Maps local port 5173 to Nginx port 80 inside container
+
 volumes:
   mssql-data:
   cassandra-data:

@@ -4,6 +4,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.convert.converter.Converter;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.core.GrantedAuthority;
@@ -36,8 +38,19 @@ public class SecurityConfig {
     public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
         http
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
+                .cors(Customizer.withDefaults()) // Integrates with Spring Cloud Gateway globalcors config
                 .authorizeExchange(exchanges -> exchanges
+                        // 1. ALWAYS permit HTTP OPTIONS preflight requests
+                        .pathMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                        // 2. Actuator endpoints
                         .pathMatchers("/actuator/**").permitAll()
+
+                        // 3. Public Customer Portal endpoints (Guest return submission & image upload)
+                        .pathMatchers("/api/v1/returns/evidence/presigned-url").permitAll()
+                        .pathMatchers(HttpMethod.POST, "/api/v1/returns").permitAll()
+
+                        // 4. Protected management/operator endpoints
                         .pathMatchers("/api/v1/returns/**").hasAnyRole("CUSTOMER", "LOGISTICS_OPERATOR")
                         .pathMatchers("/api/v1/inventory/**").hasRole("LOGISTICS_OPERATOR")
                         .anyExchange().authenticated()

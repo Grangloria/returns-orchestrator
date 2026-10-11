@@ -22,10 +22,11 @@ spring:
     gateway:
       globalcors:
         cors-configurations:
-          '/[**]':
+          '[/**]':
             allowedOrigins:
               - "https://returns.grangloria.com"
               - "http://localhost:3000"
+              - "http://localhost:5173"
             allowedMethods:
               - GET
               - POST
