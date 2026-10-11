@@ -69,6 +69,9 @@ logging:
     org.springframework.r2dbc.core.R2dbcEntityTemplate: ${LOGGING_LEVEL_R2DBC_TEMPLATE:DEBUG}
     io.r2dbc.mssql: ${LOGGING_LEVEL_MSSQL:DEBUG}
     com.grangloria.returns: ${LOGGING_LEVEL_RETURNS:DEBUG}
+  pattern:
+    level: "%5p [%X{traceId:-},%X{spanId:-}]"
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %5p [%X{traceId:-},%X{spanId:-}] [%thread] %logger{36} : %m%n"
 
 # Actuator & Prometheus Metrics Parity
 management:
@@ -84,3 +87,9 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+  tracing:
+    sampling:
+      probability: 1.0
+  otlp:
+    tracing:
+      endpoint: "http://localhost:4318/v1/traces"

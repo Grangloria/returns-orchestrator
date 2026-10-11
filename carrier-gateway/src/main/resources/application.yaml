@@ -52,10 +52,19 @@ spring:
         spring.json.use.type.headers: false
         spring.json.value.default.type: "com.returns.common.event.ReturnInitiatedEvent"
 
+  # Enables automatic W3C trace propagation across Kafka
+  template:
+    observation-enabled: true
+  listener:
+    observation-enabled: true
+
 logging:
   level:
     root: ${LOGGING_LEVEL_ROOT:INFO}
     com.returns.gateway: ${LOGGING_LEVEL_GATEWAY:DEBUG}
+  pattern:
+    level: "%5p [%X{traceId:-},%X{spanId:-}]"
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %5p [%X{traceId:-},%X{spanId:-}] [%thread] %logger{36} : %m%n"
 
 management:
   endpoints:
@@ -71,6 +80,12 @@ management:
   health:
     defaults:
       enabled: true
+  tracing:
+    sampling:
+      probability: 1.0
+  otlp:
+    tracing:
+      endpoint: "http://${OTEL_EXPORTER_OTLP_ENDPOINT:localhost:4318}/v1/traces"
 
 carrier:
   client:

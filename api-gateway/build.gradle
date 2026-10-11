@@ -23,9 +23,12 @@ dependencies {
     // Reactive Redis for RequestRateLimiter GatewayFilter
     implementation 'org.springframework.boot:spring-boot-starter-data-redis-reactive'
 
-    // Actuator Telemetry & Prometheus Scraping
+    // Actuator Telemetry, Prometheus Scraping, and Distributed tracing
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'io.micrometer:micrometer-registry-prometheus'
+    implementation 'io.micrometer:micrometer-tracing-bridge-otel'
+    implementation 'io.opentelemetry:opentelemetry-exporter-otlp'
+    implementation 'io.projectreactor:reactor-core-micrometer'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'io.projectreactor:reactor-test'

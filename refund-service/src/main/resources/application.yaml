@@ -48,6 +48,12 @@ spring:
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
 
+    # Enables automatic W3C trace propagation across Kafka
+    template:
+      observation-enabled: true
+    listener:
+      observation-enabled: true
+
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
@@ -62,12 +68,23 @@ spring:
         spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
         spring.json.trusted.packages: ${KAFKA_TRUSTED_PACKAGES:com.returns.common.event}
 
-# Actuator & Prometheus Metrics Parity
+# Logging Levels (Streams to stdout for Docker & AWS CloudWatch)
+logging:
+  level:
+    root: ${LOGGING_LEVEL_ROOT:INFO}
+    org.springframework.r2dbc: ${LOGGING_LEVEL_R2DBC:DEBUG}
+    org.springframework.data.r2dbc: ${LOGGING_LEVEL_DATA_R2DBC:DEBUG}
+    com.returns.refund: ${LOGGING_LEVEL_REFUND:DEBUG}
+  pattern:
+    level: "%5p [%X{traceId:-},%X{spanId:-}]"
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %5p [%X{traceId:-},%X{spanId:-}] [%thread] %logger{36} : %m%n"
+
+# Actuator, Prometheus Metrics & OpenTelemetry Tracing Parity
 management:
   endpoints:
     web:
       exposure:
-        include: "prometheus,health,info,metrics"
+        include: "prometheus,health,info,metrics,tracing"
   endpoint:
     prometheus:
       enabled: true
@@ -76,11 +93,9 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
-
-# Logging Levels (Streams to stdout for Docker & AWS CloudWatch)
-logging:
-  level:
-    root: ${LOGGING_LEVEL_ROOT:INFO}
-    org.springframework.r2dbc: ${LOGGING_LEVEL_R2DBC:DEBUG}
-    org.springframework.data.r2dbc: ${LOGGING_LEVEL_DATA_R2DBC:DEBUG}
-    com.returns.refund: ${LOGGING_LEVEL_REFUND:DEBUG}
+  tracing:
+    sampling:
+      probability: 1.0
+  otlp:
+    tracing:
+      endpoint: "http://${OTEL_EXPORTER_OTLP_ENDPOINT:localhost:4318}/v1/traces"

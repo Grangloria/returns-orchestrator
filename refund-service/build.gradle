@@ -27,7 +27,9 @@ dependencies {
 
     // Core Spring Boot Observability Infrastructure
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
-    implementation 'io.micrometer:micrometer-tracing-bridge-brave'
+    implementation 'io.micrometer:micrometer-tracing-bridge-otel'
+    implementation 'io.opentelemetry:opentelemetry-exporter-otlp'
+    implementation 'io.projectreactor:reactor-core-micrometer'
 
     // Core Reactive Messaging Tracing Capabilities
     implementation 'io.projectreactor:reactor-core'
@@ -54,7 +56,6 @@ dependencies {
 
     // Micrometer Tracing
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
-    implementation 'io.micrometer:micrometer-tracing-bridge-brave'
     implementation 'io.micrometer:micrometer-registry-prometheus'
 
     // Resilience4j starter for Spring Boot 3
