@@ -29,29 +29,30 @@ dependencies {
     implementation 'io.projectreactor.kafka:reactor-kafka'
     implementation 'io.projectreactor:reactor-core'
 
-    // 3. Observability & Tracing (Actuator, Prometheus, Brave)
+    // 3. Observability & Tracing (Actuator, Prometheus, OpenTelemetry)
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
-    implementation 'io.micrometer:micrometer-tracing-bridge-brave'
     implementation 'io.micrometer:micrometer-registry-prometheus'
+    implementation 'io.micrometer:micrometer-tracing-bridge-otel'
+    implementation 'io.opentelemetry:opentelemetry-exporter-otlp'
+    implementation 'io.projectreactor:reactor-core-micrometer'
 
-    // 4. API Documentation (Swagger UI)
-    implementation 'org.springdoc:springdoc-openapi-starter-webflux-ui:2.9.1'
+    // 4. API Documentation (Version 2.3.0 is required for Spring Boot 3.2.x compatibility)
+    implementation 'org.springdoc:springdoc-openapi-starter-webflux-ui:2.3.0'
 
-    // 5. Developer Tools
+    // 5. Resilience4j & AOP
+    implementation 'org.springframework.boot:spring-boot-starter-aop'
+    implementation 'io.github.resilience4j:resilience4j-spring-boot3:2.2.0'
+    implementation 'io.github.resilience4j:resilience4j-reactor:2.2.0'
+
+    // 6. Developer Tools
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
 
-    // 6. Testing Suite
+    // 7. Testing Suite
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'io.projectreactor:reactor-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-
-    implementation 'org.springframework.boot:spring-boot-starter-aop'
-    implementation 'io.github.resilience4j:resilience4j-spring-boot3:2.2.0'
-
-    implementation 'io.github.resilience4j:resilience4j-spring-boot3'
-    implementation 'io.github.resilience4j:resilience4j-reactor:2.2.0'
 }
 
 springBoot {

@@ -43,11 +43,20 @@ spring:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 
+    # Enables automatic W3C trace propagation across Kafka
+    template:
+      observation-enabled: true
+    listener:
+      observation-enabled: true
+
 # Logging Levels (Streams to stdout for Docker & AWS CloudWatch)
 logging:
   level:
     root: ${LOGGING_LEVEL_ROOT:INFO}
     com.grangloria.notification: ${LOGGING_LEVEL_NOTIFICATION:DEBUG}
+  pattern:
+    level: "%5p [%X{traceId:-},%X{spanId:-}]"
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %5p [%X{traceId:-},%X{spanId:-}] [%thread] %logger{36} : %m%n"
 
 resilience4j:
   retry:
@@ -64,10 +73,17 @@ management:
   endpoints:
     web:
       exposure:
-        include: "prometheus,health,info"
+        include: "health,info,prometheus"
   endpoint:
     prometheus:
       enabled: true
   metrics:
     tags:
       application: ${spring.application.name}
+  tracing:
+    enabled: true  # Set to false to disable tracing autoconfiguration completely
+    sampling:
+      probability: 1.0
+  otlp:
+    tracing:
+      endpoint: "https://${OTEL_EXPORTER_OTLP_ENDPOINT:localhost:4318}/v1/traces"

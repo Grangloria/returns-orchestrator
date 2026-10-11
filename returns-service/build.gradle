@@ -24,37 +24,25 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-webflux'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
 
-    // Core Spring Boot Observability Infrastructure
+    // Core Spring Boot Observability & OpenTelemetry Tracing Infrastructure
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
-    implementation 'io.micrometer:micrometer-tracing-bridge-brave'
+    implementation 'io.micrometer:micrometer-registry-prometheus'
+    implementation 'io.micrometer:micrometer-tracing-bridge-otel'
+    implementation 'io.opentelemetry:opentelemetry-exporter-otlp'
+    implementation 'io.projectreactor:reactor-core-micrometer'
 
     // Core Reactive Messaging Tracing Capabilities
     implementation 'io.projectreactor:reactor-core'
     implementation 'io.projectreactor.kafka:reactor-kafka'
+    implementation 'org.springframework.kafka:spring-kafka'
 
     // THE DATABASE (Reactive SQL Server)
     implementation 'org.springframework.boot:spring-boot-starter-data-r2dbc'
     runtimeOnly 'com.microsoft.sqlserver:mssql-jdbc'
     runtimeOnly 'io.r2dbc:r2dbc-mssql:1.0.0.RELEASE'
 
-    // THE DEVELOPER TOOLS (Lombok saves lives at 4:30 AM)
-    compileOnly 'org.projectlombok:lombok'
-    annotationProcessor 'org.projectlombok:lombok'
-    developmentOnly 'org.springframework.boot:spring-boot-devtools'
-
-    // THE TESTING SUITE
-    testImplementation 'org.springframework.boot:spring-boot-starter-test'
-    testImplementation 'io.projectreactor:reactor-test'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-
+    // OpenAPI Documentation
     implementation 'org.springdoc:springdoc-openapi-starter-webflux-ui:2.5.0'
-
-    implementation 'org.springframework.kafka:spring-kafka'
-
-    // Micrometer Tracing
-    implementation 'org.springframework.boot:spring-boot-starter-actuator'
-    implementation 'io.micrometer:micrometer-tracing-bridge-brave'
-    implementation 'io.micrometer:micrometer-registry-prometheus'
 
     // Resilience4j starter for Spring Boot 3
     implementation 'io.github.resilience4j:resilience4j-spring-boot3:2.2.0'
@@ -63,9 +51,18 @@ dependencies {
     implementation platform('software.amazon.awssdk:bom:2.25.10')
     implementation 'software.amazon.awssdk:dynamodb'
     implementation 'software.amazon.awssdk:dynamodb-enhanced'
+
+    // THE DEVELOPER TOOLS
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+    developmentOnly 'org.springframework.boot:spring-boot-devtools'
+
+    // THE TESTING SUITE
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'io.projectreactor:reactor-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
-// Keep this so Gradle knows exactly where to look
 springBoot {
     mainClass = 'com.grangloria.returns.ReturnsApplication'
 }

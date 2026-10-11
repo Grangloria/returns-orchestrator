@@ -65,6 +65,17 @@ management:
     web:
       exposure:
         include: "prometheus,health,info,metrics"
+  tracing:
+    sampling:
+      probability: 1.0
+  otlp:
+    tracing:
+      endpoint: "http://${OTEL_EXPORTER_OTLP_ENDPOINT:localhost:4318}/v1/traces"
   metrics:
     tags:
       application: ${spring.application.name}
+
+logging:
+  pattern:
+    level: "%5p [%X{traceId:-},%X{spanId:-}]"
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %5p [%X{traceId:-},%X{spanId:-}] [%thread] %logger{36} : %m%n"

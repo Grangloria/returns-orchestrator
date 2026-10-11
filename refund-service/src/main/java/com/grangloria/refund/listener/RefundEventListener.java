@@ -46,58 +46,82 @@ public class RefundEventListener {
         RLockReactive lock = redissonReactiveClient.getLock(lockKey);
         String eventId = (event.returnId() != null ? event.returnId() : event.orderId()) + "-RESTOCKED";
 
-        Mono.from(lock.tryLock(5, 10, TimeUnit.SECONDS))
+        // Capture current thread ID at lock request time to handle reactive thread switching
+        long currentThreadId = Thread.currentThread().threadId();
+
+        Mono.from(lock.tryLock(5, 10, TimeUnit.SECONDS, currentThreadId))
                 .flatMap(acquired -> {
                     if (!acquired) {
                         log.warn("[REDLOCK] Could not acquire lock [{}] for Order ID: [{}]. Processing skipped or concurrently locked.",
                                 lockKey, event.orderId());
-                        return Mono.empty();
+                        return Mono.empty(); // Exits cleanly WITHOUT calling unlock
                     }
 
                     log.info("[REDLOCK] Acquired lock [{}] for Order ID: [{}]", lockKey, event.orderId());
 
-                    return refundLedgerRepository.existsByEventId(eventId)
-                            .flatMap(exists -> {
-                                if (exists) {
-                                    log.info("[IDEMPOTENCY] Event [{}] already recorded in refund_ledger. Skipping duplicate payout for Order ID: [{}]",
-                                            eventId, event.orderId());
-                                    return Mono.empty();
-                                }
+                    // Execute business logic and bind unlock strictly to acquired pipeline
+                    return executeRefundProcessing(event, eventId)
+                            .doFinally(signal -> unlockSafely(lock, lockKey, event.orderId(), currentThreadId));
+                })
+                .subscribe();
+    }
 
-                                log.info("[REFUND-SERVICE] Consumed InventoryRestockedEvent for Return ID: [{}], Order ID: [{}]. Initiating payout of [{}]...",
-                                        event.returnId(), event.orderId(), event.refundAmount());
+    private Mono<Void> executeRefundProcessing(InventoryRestockedEvent event, String eventId) {
+        return refundLedgerRepository.existsByEventId(eventId)
+                .flatMap(exists -> {
+                    if (exists) {
+                        log.info("[IDEMPOTENCY] Event [{}] already recorded in refund_ledger. Skipping duplicate payout for Order ID: [{}]",
+                                eventId, event.orderId());
+                        return Mono.empty();
+                    }
 
-                                String transactionId = "TXN-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
-                                BigDecimal amount = !event.refundAmount().equals(BigDecimal.ZERO) ? event.refundAmount() : BigDecimal.ZERO;
+                    log.info("[REFUND-SERVICE] Consumed InventoryRestockedEvent for Return ID: [{}], Order ID: [{}]. Initiating payout of [{}]...",
+                            event.returnId(), event.orderId(), event.refundAmount());
 
-                                RefundLedger ledgerEntry = RefundLedger.create(
-                                        eventId,
+                    String transactionId = "TXN-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+                    BigDecimal amount = (event.refundAmount() != null && !event.refundAmount().equals(BigDecimal.ZERO))
+                            ? event.refundAmount() : BigDecimal.ZERO;
+
+                    RefundLedger ledgerEntry = RefundLedger.create(
+                            eventId,
+                            event.orderId(),
+                            amount,
+                            "COMPLETED"
+                    );
+
+                    return refundLedgerRepository.save(ledgerEntry)
+                            .doOnSuccess(savedLedger -> {
+                                RefundCompletedEvent refundEvent = new RefundCompletedEvent(
+                                        event.returnId(),
                                         event.orderId(),
+                                        event.customerEmail(),
                                         amount,
-                                        "COMPLETED"
+                                        transactionId,
+                                        Instant.now()
                                 );
 
-                                return refundLedgerRepository.save(ledgerEntry)
-                                        .doOnSuccess(savedLedger -> {
-                                            RefundCompletedEvent refundEvent = new RefundCompletedEvent(
-                                                    event.returnId(),
-                                                    event.orderId(),
-                                                    event.customerEmail(),
-                                                    amount,
-                                                    transactionId,
-                                                    Instant.now()
-                                            );
+                                kafkaTemplate.send(refundCompletedTopic, event.orderId(), refundEvent);
 
-                                            kafkaTemplate.send(refundCompletedTopic, event.orderId(), refundEvent);
+                                log.info("[REFUND-SERVICE] Payout recorded in ledger & event emitted for Order ID: [{}]. Transaction ID: [{}]",
+                                        event.orderId(), transactionId);
+                            });
+                }).then();
+    }
 
-                                            log.info("[REFUND-SERVICE] Payout recorded in ledger & event emitted for Order ID: [{}]. Transaction ID: [{}]",
-                                                    event.orderId(), transactionId);
-                                        });
-                            })
-                            .doFinally(signal -> Mono.from(lock.unlock())
-                                    .doOnSuccess(v -> log.info("[REDLOCK] Released lock [{}] for Order ID: [{}]", lockKey, event.orderId()))
-                                    .doOnError(ex -> log.error("[REDLOCK-ERROR] Failed to release lock [{}] for Order ID: [{}]: {}", lockKey, event.orderId(), ex.getMessage()))
-                                    .subscribe());
+    private void unlockSafely(RLockReactive lock, String lockKey, String orderId, long threadId) {
+        Mono.from(lock.isHeldByThread(threadId))
+                .flatMap(isHeld -> {
+                    if (Boolean.TRUE.equals(isHeld)) {
+                        return Mono.from(lock.unlock(threadId))
+                                .doOnSuccess(v -> log.info("[REDLOCK] Released lock [{}] for Order ID: [{}]", lockKey, orderId));
+                    } else {
+                        log.warn("[REDLOCK-WARN] Lock [{}] for Order ID: [{}] expired or released prior to unlock call.", lockKey, orderId);
+                        return Mono.empty();
+                    }
+                })
+                .onErrorResume(ex -> {
+                    log.warn("[REDLOCK-EXPIRED] Lock [{}] for Order ID: [{}] already released: {}", lockKey, orderId, ex.getMessage());
+                    return Mono.empty();
                 })
                 .subscribe();
     }

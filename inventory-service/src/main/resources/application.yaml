@@ -58,6 +58,12 @@ spring:
         spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
         spring.json.trusted.packages: ${KAFKA_TRUSTED_PACKAGES:com.returns.common.event}
 
+    # Enables automatic W3C trace propagation across Kafka
+    template:
+      observation-enabled: true
+    listener:
+      observation-enabled: true
+
 # Logging Levels (Streams directly to stdout for Docker & AWS CloudWatch)
 logging:
   level:
@@ -65,6 +71,9 @@ logging:
     org.springframework.r2dbc: ${LOGGING_LEVEL_R2DBC:DEBUG}
     org.springframework.data.r2dbc: ${LOGGING_LEVEL_DATA_R2DBC:DEBUG}
     com.returns.inventory: ${LOGGING_LEVEL_INVENTORY:DEBUG}
+  pattern:
+    level: "%5p [%X{traceId:-},%X{spanId:-}]"
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %5p [%X{traceId:-},%X{spanId:-}] [%thread] %logger{36} : %m%n"
 
 aws:
   region: ${AWS_REGION:us-east-1}
@@ -87,3 +96,9 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+  tracing:
+    sampling:
+      probability: 1.0
+  otlp:
+    tracing:
+      endpoint: "http://${OTEL_EXPORTER_OTLP_ENDPOINT:localhost:4318}/v1/traces"
