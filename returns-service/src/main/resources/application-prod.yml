@@ -11,12 +11,14 @@ spring:
   flyway:
     enabled: false
 
-  # Exclude Kafka auto-configuration so the container does not crash waiting for a local broker
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
+  # Let KafkaAutoConfiguration run so KafkaProperties exists,
+  # but disable listener containers from trying to connect on startup
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    listener:
+      auto-startup: false
 
-  # Provide fallback dummy DB values so Spring context initializes without crashing
+  # Fallback datasource settings so Spring context initializes without crashing
   datasource:
     host: localhost
     port: 1433
