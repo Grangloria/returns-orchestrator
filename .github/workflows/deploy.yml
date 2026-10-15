@@ -1,0 +1,169 @@
+name: CI/CD Pipeline - AWS ECS Deployment
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-east-2
+  ECS_CLUSTER: returns-orchestrator-cluster-prod
+  PORTAL_SERVICE: customer-portal-service
+  GATEWAY_SERVICE: api-gateway-service
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-2.amazonaws.com
+
+permissions:
+  id-token: write   # Required for AWS OIDC authentication
+  contents: read
+
+jobs:
+  # -------------------------------------------------------------
+  # Stage 1: Build, Unit/Testcontainers Testing & SAST Scan
+  # -------------------------------------------------------------
+  test-and-analyze:
+    name: Gradle Tests & SonarQube SAST Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Full history needed for SonarQube analysis
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Cache Gradle Packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Cache SonarQube Packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+
+      # Executes unit tests and LocalStack/Kafka Testcontainers integration tests
+      - name: Execute Gradle Tests & Build
+        run: ./gradlew clean build test --info
+
+      - name: SonarQube SAST Code Analysis
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: ./gradlew sonar --info
+
+  # -------------------------------------------------------------
+  # Stage 2: Docker Multi-Stage Build & Push to Amazon ECR
+  # -------------------------------------------------------------
+  build-and-publish:
+    name: Build & Push Docker Images
+    needs: test-and-analyze
+    runs-on: ubuntu-latest
+    outputs:
+      image-portal: ${{ steps.build-portal.outputs.image }}
+      image-gateway: ${{ steps.build-gateway.outputs.image }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-deploy-role
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and Push Customer Portal Image
+        id: build-portal
+        env:
+          ECR_REPO: customer-portal
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          IMAGE_URI="${{ steps.login-ecr.outputs.registry }}/$ECR_REPO:$IMAGE_TAG"
+          docker build -t "$IMAGE_URI" -t "${{ steps.login-ecr.outputs.registry }}/$ECR_REPO:latest" ./customer-portal
+          docker push "$IMAGE_URI"
+          docker push "${{ steps.login-ecr.outputs.registry }}/$ECR_REPO:latest"
+          echo "image=$IMAGE_URI" >> "$GITHUB_OUTPUT"
+
+      - name: Build and Push API Gateway Image
+        id: build-gateway
+        env:
+          ECR_REPO: api-gateway
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          IMAGE_URI="${{ steps.login-ecr.outputs.registry }}/$ECR_REPO:$IMAGE_TAG"
+          docker build -t "$IMAGE_URI" -t "${{ steps.login-ecr.outputs.registry }}/$ECR_REPO:latest" ./api-gateway
+          docker push "$IMAGE_URI"
+          docker push "${{ steps.login-ecr.outputs.registry }}/$ECR_REPO:latest"
+          echo "image=$IMAGE_URI" >> "$GITHUB_OUTPUT"
+
+  # -------------------------------------------------------------
+  # Stage 3: Rolling Deployments to AWS ECS Fargate
+  # -------------------------------------------------------------
+  deploy-fargate:
+    name: Deploy to ECS Fargate
+    needs: build-and-publish
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Configure AWS Credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-deploy-role
+          aws-region: ${{ env.AWS_REGION }}
+
+      # Download the active task definitions from AWS
+      - name: Download Active Task Definitions
+        run: |
+          aws ecs describe-task-definition --task-definition customer-portal-prod --query taskDefinition > task-def-portal.json
+          aws ecs describe-task-definition --task-definition api-gateway-prod --query taskDefinition > task-def-gateway.json
+
+      # Inject newly published image tags
+      - name: Render Portal Task Definition
+        id: render-portal
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-def-portal.json
+          container-name: customer-portal
+          image: ${{ needs.build-and-publish.outputs.image-portal }}
+
+      - name: Render Gateway Task Definition
+        id: render-gateway
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-def-gateway.json
+          container-name: api-gateway
+          image: ${{ needs.build-and-publish.outputs.image-gateway }}
+
+      # Trigger rolling update with zero downtime
+      - name: Deploy Customer Portal to ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.render-portal.outputs.task-definition }}
+          service: ${{ env.PORTAL_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
+
+      - name: Deploy API Gateway to ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.render-gateway.outputs.task-definition }}
+          service: ${{ env.GATEWAY_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
