@@ -4,21 +4,23 @@ server:
 aws:
   region: ${AWS_REGION:us-east-2}
   s3:
+    bucket: ${S3_BUCKET_NAME:returns-evidence-photos-prod-855eb843}
     bucket-name: ${S3_BUCKET_NAME:returns-evidence-photos-prod-855eb843}
+    endpoint: ""
+
+app:
+  outbox:
+    enabled: false
 
 spring:
-  # Disable Flyway migrations in AWS production
   flyway:
     enabled: false
 
-  # Let KafkaAutoConfiguration run so KafkaProperties exists,
-  # but disable listener containers from trying to connect on startup
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     listener:
       auto-startup: false
 
-  # Fallback datasource settings so Spring context initializes without crashing
   datasource:
     host: localhost
     port: 1433
@@ -34,4 +36,6 @@ management:
     enabled: false
   health:
     defaults:
+      enabled: false
+    r2dbc:
       enabled: false
