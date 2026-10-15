@@ -58,6 +58,14 @@ jobs:
       - name: Execute Gradle Tests & Build
         run: ./gradlew clean build test --info
 
+      # Preserve compiled JAR for the Docker build stage
+      - name: Upload API Gateway Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-gateway-jar
+          path: api-gateway/build/libs/api-gateway-0.0.1-SNAPSHOT.jar
+          if-no-files-found: error
+
       - name: SonarQube SAST Code Analysis
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -78,6 +86,13 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+
+      # Restore the compiled JAR into the API Gateway build context
+      - name: Download API Gateway Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: api-gateway-jar
+          path: api-gateway/build/libs
 
       - name: Configure AWS Credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
