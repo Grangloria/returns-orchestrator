@@ -1,8 +1,11 @@
 import axios from 'axios';
 import type { PresignedUrlResponse, ReturnSubmissionResponse } from '../types';
 
-const api = axios.create({
-    baseURL: 'http://localhost:8080/api/v1',
+export const api = axios.create({
+    baseURL: '/api/v1',
+    headers: {
+        'Content-Type': 'application/json',
+    },
 });
 
 // 1. Get temporary PUT URL from returns-service via Gateway
