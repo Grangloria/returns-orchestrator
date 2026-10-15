@@ -11,7 +11,7 @@ env:
   ECS_CLUSTER: returns-orchestrator-cluster-prod
   PORTAL_SERVICE: customer-portal-service
   GATEWAY_SERVICE: api-gateway-service
-  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-2.amazonaws.com
+  ECR_REGISTRY: 594116288585.dkr.ecr.us-east-2.amazonaws.com
 
 permissions:
   id-token: write   # Required for AWS OIDC authentication
@@ -79,15 +79,11 @@ jobs:
     name: Build & Push Docker Images
     needs: test-and-analyze
     runs-on: ubuntu-latest
-    outputs:
-      image-portal: ${{ steps.build-portal.outputs.image }}
-      image-gateway: ${{ steps.build-gateway.outputs.image }}
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # Restore the compiled JAR into the API Gateway build context
       - name: Download API Gateway Artifact
         uses: actions/download-artifact@v4
         with:
@@ -97,7 +93,7 @@ jobs:
       - name: Configure AWS Credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-deploy-role
+          role-to-assume: arn:aws:iam::594116288585:role/github-actions-deploy-role
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Log in to Amazon ECR
@@ -105,28 +101,18 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Build and Push Customer Portal Image
-        id: build-portal
-        env:
-          ECR_REPO: customer-portal
-          IMAGE_TAG: ${{ github.sha }}
         run: |
-          IMAGE_URI="${{ steps.login-ecr.outputs.registry }}/$ECR_REPO:$IMAGE_TAG"
-          docker build -t "$IMAGE_URI" -t "${{ steps.login-ecr.outputs.registry }}/$ECR_REPO:latest" ./customer-portal
+          IMAGE_URI="${{ env.ECR_REGISTRY }}/customer-portal:${{ github.sha }}"
+          docker build -t "$IMAGE_URI" -t "${{ env.ECR_REGISTRY }}/customer-portal:latest" ./customer-portal
           docker push "$IMAGE_URI"
-          docker push "${{ steps.login-ecr.outputs.registry }}/$ECR_REPO:latest"
-          echo "image=$IMAGE_URI" >> "$GITHUB_OUTPUT"
+          docker push "${{ env.ECR_REGISTRY }}/customer-portal:latest"
 
       - name: Build and Push API Gateway Image
-        id: build-gateway
-        env:
-          ECR_REPO: api-gateway
-          IMAGE_TAG: ${{ github.sha }}
         run: |
-          IMAGE_URI="${{ steps.login-ecr.outputs.registry }}/$ECR_REPO:$IMAGE_TAG"
-          docker build -t "$IMAGE_URI" -t "${{ steps.login-ecr.outputs.registry }}/$ECR_REPO:latest" ./api-gateway
+          IMAGE_URI="${{ env.ECR_REGISTRY }}/api-gateway:${{ github.sha }}"
+          docker build -t "$IMAGE_URI" -t "${{ env.ECR_REGISTRY }}/api-gateway:latest" ./api-gateway
           docker push "$IMAGE_URI"
-          docker push "${{ steps.login-ecr.outputs.registry }}/$ECR_REPO:latest"
-          echo "image=$IMAGE_URI" >> "$GITHUB_OUTPUT"
+          docker push "${{ env.ECR_REGISTRY }}/api-gateway:latest"
 
   # -------------------------------------------------------------
   # Stage 3: Rolling Deployments to AWS ECS Fargate
@@ -140,7 +126,7 @@ jobs:
       - name: Configure AWS Credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-deploy-role
+          role-to-assume: arn:aws:iam::594116288585:role/github-actions-deploy-role
           aws-region: ${{ env.AWS_REGION }}
 
       # Download the active task definitions from AWS
@@ -149,14 +135,14 @@ jobs:
           aws ecs describe-task-definition --task-definition customer-portal-prod --query taskDefinition > task-def-portal.json
           aws ecs describe-task-definition --task-definition api-gateway-prod --query taskDefinition > task-def-gateway.json
 
-      # Inject newly published image tags
+      # Inject newly published image tags directly
       - name: Render Portal Task Definition
         id: render-portal
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
           task-definition: task-def-portal.json
           container-name: customer-portal
-          image: ${{ needs.build-and-publish.outputs.image-portal }}
+          image: ${{ env.ECR_REGISTRY }}/customer-portal:${{ github.sha }}
 
       - name: Render Gateway Task Definition
         id: render-gateway
@@ -164,7 +150,7 @@ jobs:
         with:
           task-definition: task-def-gateway.json
           container-name: api-gateway
-          image: ${{ needs.build-and-publish.outputs.image-gateway }}
+          image: ${{ env.ECR_REGISTRY }}/api-gateway:${{ github.sha }}
 
       # Trigger rolling update with zero downtime
       - name: Deploy Customer Portal to ECS
