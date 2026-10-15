@@ -1,0 +1,26 @@
+spring:
+  # Disable Redis auto-configuration in production
+  autoconfigure:
+    exclude: org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+  data:
+    redis:
+      repositories:
+        enabled: false
+
+  # Overwrite the routes to remove the Redis-dependent RateLimiter filters
+  cloud:
+    gateway:
+      routes:
+        - id: returns-service-route
+          uri: http://${RETURNS_SERVICE_HOST:localhost}:8000
+          predicates:
+            - Path=/api/v1/returns/**
+
+        - id: inventory-service-route
+          uri: http://${INVENTORY_SERVICE_HOST:localhost}:8001
+          predicates:
+            - Path=/api/v1/inventory/**
+
+management:
+  tracing:
+    enabled: false
