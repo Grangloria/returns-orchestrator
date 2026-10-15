@@ -12,12 +12,12 @@ spring:
     gateway:
       routes:
         - id: returns-service-route
-          uri: http://${RETURNS_SERVICE_HOST:localhost}:8000
+          uri: http://returns-service.returns-orchestrator-cluster-prod.local:8000
           predicates:
             - Path=/api/v1/returns/**
 
         - id: inventory-service-route
-          uri: http://${INVENTORY_SERVICE_HOST:localhost}:8001
+          uri: http://inventory-service.returns-orchestrator-cluster-prod.local:8001
           predicates:
             - Path=/api/v1/inventory/**
 
