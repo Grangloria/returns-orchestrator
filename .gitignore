@@ -3,6 +3,13 @@
 build/
 !gradle/wrapper/gradle-wrapper.jar
 
+# Node & Frontend
+node_modules/
+dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
 # IntelliJ
 .idea/
 *.iml
@@ -13,8 +20,17 @@ gen/
 .DS_Store
 Thumbs.db
 
-# Spring Boot
+# Spring Boot & Logging
 log/
+logs/
+*.log
 target/
 
 /.env
+
+# Terraform local state and cache
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+.terraform.lock.hcl
