@@ -2,7 +2,10 @@
 resource "aws_iam_openid_connect_provider" "github" {
   url             = "https://token.actions.githubusercontent.com"
   client_id_list  = ["sts.amazonaws.com"]
-  thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1", "1c58761d2415402a35b465156eec04e692f22978"]
+  thumbprint_list = [
+    "6938fd4d98bab03faadb97b34396831e3780aea1",
+    "1c58761d2415402a35b465156eec04e692f22978"
+  ]
 }
 
 # IAM Role assumed by GitHub Actions
@@ -22,8 +25,11 @@ resource "aws_iam_role" "github_actions_deploy" {
           "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
         }
         StringLike = {
-          # Restricts execution strictly to your Grangloria repository
-          "token.actions.githubusercontent.com:sub" = "repo:Grangloria/returns-orchestrator:*"
+          # Accommodates both lowercase and capitalized repository paths emitted by GitHub OIDC tokens
+          "token.actions.githubusercontent.com:sub" = [
+            "repo:grangloria/returns-orchestrator:*",
+            "repo:Grangloria/returns-orchestrator:*"
+          ]
         }
       }
     }]
