@@ -1,0 +1,35 @@
+server:
+  port: 8000
+
+aws:
+  region: ${AWS_REGION:us-east-2}
+  s3:
+    bucket-name: ${S3_BUCKET_NAME:returns-evidence-photos-prod-855eb843}
+
+spring:
+  # Disable Flyway migrations in AWS production
+  flyway:
+    enabled: false
+
+  # Exclude Kafka auto-configuration so the container does not crash waiting for a local broker
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
+
+  # Provide fallback dummy DB values so Spring context initializes without crashing
+  datasource:
+    host: localhost
+    port: 1433
+    name: returns_db
+
+  r2dbc:
+    url: r2dbc:mssql://localhost:1433/returns_db?encrypt=true&trustServerCertificate=true
+    username: sa
+    password: ${DB_PASS:dummy-prod-pass}
+
+management:
+  tracing:
+    enabled: false
+  health:
+    defaults:
+      enabled: false
