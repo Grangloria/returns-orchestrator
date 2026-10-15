@@ -11,6 +11,7 @@ env:
   ECS_CLUSTER: returns-orchestrator-cluster-prod
   PORTAL_SERVICE: customer-portal-service
   GATEWAY_SERVICE: api-gateway-service
+  RETURNS_SERVICE: returns-service
   ECR_REGISTRY: 594116288585.dkr.ecr.us-east-2.amazonaws.com
 
 permissions:
@@ -58,12 +59,19 @@ jobs:
       - name: Execute Gradle Tests & Build
         run: ./gradlew clean build test --info
 
-      # Preserve compiled JAR for the Docker build stage
+      # Preserve compiled JARs for the Docker build stage
       - name: Upload API Gateway Artifact
         uses: actions/upload-artifact@v4
         with:
           name: api-gateway-jar
           path: api-gateway/build/libs/api-gateway-0.0.1-SNAPSHOT.jar
+          if-no-files-found: error
+
+      - name: Upload Returns Service Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: returns-service-jar
+          path: returns-service/build/libs/returns-service-0.0.1-SNAPSHOT.jar
           if-no-files-found: error
 
       - name: SonarQube SAST Code Analysis
@@ -90,6 +98,12 @@ jobs:
           name: api-gateway-jar
           path: api-gateway/build/libs
 
+      - name: Download Returns Service Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: returns-service-jar
+          path: returns-service/build/libs
+
       - name: Configure AWS Credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -114,6 +128,13 @@ jobs:
           docker push "$IMAGE_URI"
           docker push "${{ env.ECR_REGISTRY }}/api-gateway:latest"
 
+      - name: Build and Push Returns Service Image
+        run: |
+          IMAGE_URI="${{ env.ECR_REGISTRY }}/returns-service:${{ github.sha }}"
+          docker build -t "$IMAGE_URI" -t "${{ env.ECR_REGISTRY }}/returns-service:latest" ./returns-service
+          docker push "$IMAGE_URI"
+          docker push "${{ env.ECR_REGISTRY }}/returns-service:latest"
+
   # -------------------------------------------------------------
   # Stage 3: Rolling Deployments to AWS ECS Fargate
   # -------------------------------------------------------------
@@ -134,6 +155,7 @@ jobs:
         run: |
           aws ecs describe-task-definition --task-definition customer-portal-prod --query taskDefinition > task-def-portal.json
           aws ecs describe-task-definition --task-definition api-gateway-prod --query taskDefinition > task-def-gateway.json
+          aws ecs describe-task-definition --task-definition returns-service-prod --query taskDefinition > task-def-returns.json
 
       # Inject newly published image tags directly
       - name: Render Portal Task Definition
@@ -152,6 +174,14 @@ jobs:
           container-name: api-gateway
           image: ${{ env.ECR_REGISTRY }}/api-gateway:${{ github.sha }}
 
+      - name: Render Returns Task Definition
+        id: render-returns
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-def-returns.json
+          container-name: returns-service
+          image: ${{ env.ECR_REGISTRY }}/returns-service:${{ github.sha }}
+
       # Trigger rolling update with zero downtime
       - name: Deploy Customer Portal to ECS
         uses: aws-actions/amazon-ecs-deploy-task-definition@v2
@@ -166,5 +196,13 @@ jobs:
         with:
           task-definition: ${{ steps.render-gateway.outputs.task-definition }}
           service: ${{ env.GATEWAY_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
+
+      - name: Deploy Returns Service to ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.render-returns.outputs.task-definition }}
+          service: ${{ env.RETURNS_SERVICE }}
           cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: true
