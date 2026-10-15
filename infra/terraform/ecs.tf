@@ -100,6 +100,12 @@ resource "aws_iam_role_policy" "ecs_task_permissions" {
   })
 }
 
+# Added: Grants SSM permissions to the container runtime for ECS Exec & SSM port forwarding tunnels
+resource "aws_iam_role_policy_attachment" "ecs_task_ssm" {
+  role       = aws_iam_role.ecs_task_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
 # -----------------------------------------------------------------------------
 # Ingress Rule: SQL Server Internal VPC Traffic
 # -----------------------------------------------------------------------------
@@ -308,11 +314,12 @@ resource "aws_ecs_task_definition" "sqlserver" {
 }
 
 resource "aws_ecs_service" "sqlserver" {
-  name            = "sqlserver-service"
-  cluster         = aws_ecs_cluster.main.id
-  task_definition = aws_ecs_task_definition.sqlserver.arn
-  desired_count   = 1
-  launch_type     = "FARGATE"
+  name                   = "sqlserver-service"
+  cluster                = aws_ecs_cluster.main.id
+  task_definition        = aws_ecs_task_definition.sqlserver.arn
+  desired_count          = 1
+  launch_type            = "FARGATE"
+  enable_execute_command = true # Added: Keeps ECS Exec & SSM port forwarding enabled across all deployments
 
   network_configuration {
     subnets          = aws_subnet.private[*].id
@@ -321,8 +328,8 @@ resource "aws_ecs_service" "sqlserver" {
   }
 
   service_registries {
-      registry_arn = aws_service_discovery_service.sqlserver.arn
-    }
+    registry_arn = aws_service_discovery_service.sqlserver.arn
+  }
 }
 
 # -----------------------------------------------------------------------------
@@ -385,6 +392,6 @@ resource "aws_ecs_service" "returns_service" {
   }
 
   service_registries {
-      registry_arn = aws_service_discovery_service.returns_service.arn
-    }
+    registry_arn = aws_service_discovery_service.returns_service.arn
+  }
 }

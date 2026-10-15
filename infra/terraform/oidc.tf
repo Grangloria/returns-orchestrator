@@ -25,10 +25,10 @@ resource "aws_iam_role" "github_actions_deploy" {
           "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
         }
         StringLike = {
-          # Accommodates both lowercase and capitalized repository paths emitted by GitHub OIDC tokens
+          # Matches repo paths containing GitHub numeric IDs (e.g. Grangloria@115388371/returns-orchestrator@1225323218:ref:refs/heads/main)
           "token.actions.githubusercontent.com:sub" = [
-            "repo:grangloria/returns-orchestrator:*",
-            "repo:Grangloria/returns-orchestrator:*"
+            "repo:Grangloria*/returns-orchestrator*:*",
+            "repo:grangloria*/returns-orchestrator*:*"
           ]
         }
       }

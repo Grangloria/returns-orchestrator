@@ -1,0 +1,74 @@
+import org.gradle.process.ExecSpec
+
+ext {
+    awsRegion = "us-east-2"
+    ecsCluster = "returns-orchestrator-cluster-prod"
+    sqlService = "sqlserver-service"
+}
+
+def getAwsExecutable = { ->
+    def paths = ["/opt/homebrew/bin/aws", "/usr/local/bin/aws", "/usr/bin/aws"]
+    for (p in paths) {
+        if (new File(p).exists()) return p
+    }
+    return "aws"
+}
+
+def configureEnv = { ExecSpec spec ->
+    def currentPath = System.getenv("PATH") ?: ""
+    def extra = ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin", "/usr/local/sessionmanagerplugin/bin"]
+    spec.environment("PATH", (extra + [currentPath]).join(File.pathSeparator))
+}
+
+tasks.register('awsDbTunnel') {
+    group = 'aws'
+    description = 'Opens an AWS SSM port-forwarding tunnel to the private SQL Server task (127.0.0.1:1433).'
+
+    doLast {
+        def awsExe = getAwsExecutable()
+
+        // 1. Get Task ARN
+        def taskStdout = new ByteArrayOutputStream()
+        exec { spec ->
+            configureEnv(spec)
+            spec.commandLine awsExe, 'ecs', 'list-tasks',
+                    '--cluster', ecsCluster,
+                    '--service-name', sqlService,
+                    '--query', 'taskArns[0]',
+                    '--output', 'text',
+                    '--region', awsRegion
+            spec.standardOutput = taskStdout
+        }
+        def taskArn = taskStdout.toString().trim()
+        def taskId = taskArn.substring(taskArn.lastIndexOf('/') + 1)
+
+        // 2. Get Container Runtime ID
+        def runtimeStdout = new ByteArrayOutputStream()
+        exec { spec ->
+            configureEnv(spec)
+            spec.commandLine awsExe, 'ecs', 'describe-tasks',
+                    '--cluster', ecsCluster,
+                    '--tasks', taskArn,
+                    '--query', "tasks[0].containers[?name=='sqlserver'].runtimeId | [0]",
+                    '--output', 'text',
+                    '--region', awsRegion
+            spec.standardOutput = runtimeStdout
+        }
+        def runtimeId = runtimeStdout.toString().trim()
+        def target = "ecs:${ecsCluster}_${taskId}_${runtimeId}"
+
+        println "Starting SSM Tunnel to ${target} on 127.0.0.1:1433..."
+        println "Press Ctrl+C to disconnect."
+
+        exec { spec ->
+            configureEnv(spec)
+            spec.standardOutput = System.out
+            spec.errorOutput = System.err
+            spec.commandLine awsExe, 'ssm', 'start-session',
+                    '--target', target,
+                    '--document-name', 'AWS-StartPortForwardingSession',
+                    '--parameters', '{"portNumber":["1433"],"localPortNumber":["1433"]}',
+                    '--region', awsRegion
+        }
+    }
+}

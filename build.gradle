@@ -15,3 +15,5 @@ allprojects {
         mavenCentral()
     }
 }
+
+apply from: 'gradle/aws.gradle'
