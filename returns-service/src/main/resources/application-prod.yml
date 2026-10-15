@@ -22,14 +22,14 @@ spring:
       auto-startup: false
 
   datasource:
-    host: localhost
+    host: ${DB_HOST:sqlserver.returns-orchestrator-cluster-prod.local}
     port: 1433
     name: returns_db
 
   r2dbc:
-    url: r2dbc:mssql://localhost:1433/returns_db?encrypt=true&trustServerCertificate=true
+    url: r2dbc:mssql://${DB_HOST:sqlserver.returns-orchestrator-cluster-prod.local}:1433/returns_db?encrypt=true&trustServerCertificate=true
     username: sa
-    password: ${DB_PASS:dummy-prod-pass}
+    password: ${DB_PASS:ProdPass123!}
 
 management:
   tracing:
