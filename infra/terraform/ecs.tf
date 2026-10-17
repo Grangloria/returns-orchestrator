@@ -107,19 +107,6 @@ resource "aws_iam_role_policy_attachment" "ecs_task_ssm" {
 }
 
 # -----------------------------------------------------------------------------
-# Ingress Rule: SQL Server Internal VPC Traffic
-# -----------------------------------------------------------------------------
-resource "aws_security_group_rule" "ecs_mssql_ingress" {
-  type                     = "ingress"
-  from_port                = 1433
-  to_port                  = 1433
-  protocol                 = "tcp"
-  security_group_id        = aws_security_group.ecs_tasks.id
-  source_security_group_id = aws_security_group.ecs_tasks.id
-  description              = "Allow internal ECS task access to SQL Server on port 1433"
-}
-
-# -----------------------------------------------------------------------------
 # Customer Portal: Task Definition & Service
 # -----------------------------------------------------------------------------
 resource "aws_ecs_task_definition" "customer_portal" {
@@ -394,4 +381,14 @@ resource "aws_ecs_service" "returns_service" {
   service_registries {
     registry_arn = aws_service_discovery_service.returns_service.arn
   }
+}
+
+resource "aws_security_group_rule" "ecs_internal_ingress" {
+  type                     = "ingress"
+  from_port                = 0
+  to_port                  = 0
+  protocol                 = "-1"
+  security_group_id        = aws_security_group.ecs_tasks.id
+  source_security_group_id = aws_security_group.ecs_tasks.id
+  description              = "Allow internal traffic between all ECS cluster tasks"
 }
