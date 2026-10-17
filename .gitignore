@@ -34,3 +34,13 @@ target/
 *.tfstate.*
 *.tfvars
 .terraform.lock.hcl
+
+# Local .terraform directories
+**/.terraform/*
+
+# Crash log files
+crash.log
+crash.*.log
+
+# Exclude sensitive CLI variables
+*.tfvars.json
