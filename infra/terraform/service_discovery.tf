@@ -36,3 +36,53 @@ resource "aws_service_discovery_service" "sqlserver" {
     routing_policy = "MULTIVALUE"
   }
 }
+
+# Service Discovery: Apache Kafka
+resource "aws_service_discovery_service" "kafka" {
+  name = "kafka"
+
+  dns_config {
+    namespace_id = aws_service_discovery_private_dns_namespace.cluster.id
+
+    dns_records {
+      ttl  = 10
+      type = "A"
+    }
+
+    routing_policy = "MULTIVALUE"
+  }
+}
+
+# Service Discovery: Redis Cache & Locking
+resource "aws_service_discovery_service" "redis" {
+  name = "redis"
+
+  dns_config {
+    namespace_id = aws_service_discovery_private_dns_namespace.cluster.id
+
+    dns_records {
+      ttl  = 10
+      type = "A"
+    }
+
+    routing_policy = "MULTIVALUE"
+  }
+}
+
+# Cloud Map Discovery: Downstream Services (Inventory, Notification, Refund, Carrier, Mock API)
+resource "aws_service_discovery_service" "downstream" {
+  for_each = local.downstream_services
+
+  name = each.key
+
+  dns_config {
+    namespace_id = aws_service_discovery_private_dns_namespace.cluster.id
+
+    dns_records {
+      ttl  = 10
+      type = "A"
+    }
+
+    routing_policy = "MULTIVALUE"
+  }
+}

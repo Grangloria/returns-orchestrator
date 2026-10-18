@@ -100,7 +100,6 @@ resource "aws_iam_role_policy" "ecs_task_permissions" {
   })
 }
 
-# Added: Grants SSM permissions to the container runtime for ECS Exec & SSM port forwarding tunnels
 resource "aws_iam_role_policy_attachment" "ecs_task_ssm" {
   role       = aws_iam_role.ecs_task_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
@@ -120,7 +119,7 @@ resource "aws_ecs_task_definition" "customer_portal" {
 
   container_definitions = jsonencode([{
     name      = "customer-portal"
-    image     = "nginx:alpine"
+    image     = "594116288585.dkr.ecr.us-east-2.amazonaws.com/customer-portal:latest"
     essential = true
     portMappings = [{
       containerPort = 80
@@ -172,7 +171,7 @@ resource "aws_ecs_task_definition" "api_gateway" {
 
   container_definitions = jsonencode([{
     name      = "api-gateway"
-    image     = "openjdk:21-slim"
+    image     = "594116288585.dkr.ecr.us-east-2.amazonaws.com/api-gateway:latest"
     essential = true
     portMappings = [{
       containerPort = 8080
@@ -182,7 +181,11 @@ resource "aws_ecs_task_definition" "api_gateway" {
       { name = "SPRING_PROFILES_ACTIVE", value = "prod" },
       { name = "AWS_REGION", value = var.aws_region },
       { name = "DYNAMODB_TABLE_NAME", value = aws_dynamodb_table.returns_events.name },
-      { name = "S3_BUCKET_NAME", value = aws_s3_bucket.evidence_photos.id }
+      { name = "S3_BUCKET_NAME", value = aws_s3_bucket.evidence_photos.id },
+      { name = "RETURNS_SERVICE_HOST", value = "returns-service.returns-orchestrator-cluster-${var.environment}.local" },
+      { name = "RETURNS_SERVICE_PORT", value = "8000" },
+      { name = "REDIS_HOST", value = "redis.returns-orchestrator-cluster-${var.environment}.local" },
+      { name = "REDIS_PORT", value = "6379" }
     ]
     logConfiguration = {
       logDriver = "awslogs"
@@ -306,7 +309,7 @@ resource "aws_ecs_service" "sqlserver" {
   task_definition        = aws_ecs_task_definition.sqlserver.arn
   desired_count          = 1
   launch_type            = "FARGATE"
-  enable_execute_command = true # Added: Keeps ECS Exec & SSM port forwarding enabled across all deployments
+  enable_execute_command = true
 
   network_configuration {
     subnets          = aws_subnet.private[*].id
@@ -351,7 +354,11 @@ resource "aws_ecs_task_definition" "returns_service" {
       { name = "DB_PORT", value = "1433" },
       { name = "DB_PASS", value = "ProdPass123!" },
       { name = "SPRING_FLYWAY_ENABLED", value = "false" },
-      { name = "SPRING_KAFKA_LISTENER_AUTO_STARTUP", value = "false" }
+      { name = "SPRING_KAFKA_BOOTSTRAP_SERVERS", value = "kafka.returns-orchestrator-cluster-${var.environment}.local:9092" },
+      { name = "SPRING_KAFKA_LISTENER_AUTO_STARTUP", value = "true" },
+      { name = "SPRING_DATA_REDIS_HOST", value = "redis.returns-orchestrator-cluster-${var.environment}.local" },
+      { name = "SPRING_DATA_REDIS_PORT", value = "6379" },
+      { name = "APP_OUTBOX_ENABLED", value = "true" }
     ]
 
     logConfiguration = {
@@ -383,12 +390,103 @@ resource "aws_ecs_service" "returns_service" {
   }
 }
 
-resource "aws_security_group_rule" "ecs_internal_ingress" {
-  type                     = "ingress"
-  from_port                = 0
-  to_port                  = 0
-  protocol                 = "-1"
-  security_group_id        = aws_security_group.ecs_tasks.id
-  source_security_group_id = aws_security_group.ecs_tasks.id
-  description              = "Allow internal traffic between all ECS cluster tasks"
+# -----------------------------------------------------------------------------
+# Downstream Services: Log Groups
+# -----------------------------------------------------------------------------
+resource "aws_cloudwatch_log_group" "inventory_logs" { name = "/ecs/inventory-service-${var.environment}" }
+resource "aws_cloudwatch_log_group" "notification_logs" { name = "/ecs/notification-service-${var.environment}" }
+resource "aws_cloudwatch_log_group" "refund_logs" { name = "/ecs/refund-service-${var.environment}" }
+resource "aws_cloudwatch_log_group" "carrier_gateway_logs" { name = "/ecs/carrier-gateway-${var.environment}" }
+resource "aws_cloudwatch_log_group" "mock_carrier_logs" { name = "/ecs/mock-external-carrier-api-${var.environment}" }
+
+# -----------------------------------------------------------------------------
+# Downstream Services: Local Configuration Locals
+# -----------------------------------------------------------------------------
+locals {
+  downstream_services = {
+    "inventory-service"         = { port = 8001, log_group = aws_cloudwatch_log_group.inventory_logs.name }
+    "notification-service"      = { port = 8002, log_group = aws_cloudwatch_log_group.notification_logs.name }
+    "mock-external-carrier-api" = { port = 8003, log_group = aws_cloudwatch_log_group.mock_carrier_logs.name }
+    "carrier-gateway"           = { port = 8004, log_group = aws_cloudwatch_log_group.carrier_gateway_logs.name }
+    "refund-service"            = { port = 8006, log_group = aws_cloudwatch_log_group.refund_logs.name }
+  }
+}
+
+# -----------------------------------------------------------------------------
+# Downstream Services: Task Definitions & ECS Services
+# -----------------------------------------------------------------------------
+resource "aws_ecs_task_definition" "downstream_tasks" {
+  for_each                 = local.downstream_services
+  family                   = "${each.key}-${var.environment}"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = "256"
+  memory                   = "512"
+  execution_role_arn       = aws_iam_role.ecs_execution_role.arn
+  task_role_arn            = aws_iam_role.ecs_task_role.arn
+
+  container_definitions = jsonencode([{
+    name      = each.key
+    image     = "594116288585.dkr.ecr.us-east-2.amazonaws.com/${each.key}:latest"
+    essential = true
+    portMappings = [{
+      containerPort = each.value.port
+      hostPort      = each.value.port
+      protocol      = "tcp"
+    }]
+    environment = [
+      { name = "SPRING_PROFILES_ACTIVE", value = "prod" },
+      { name = "NODE_ENV", value = "production" },
+      { name = "AWS_REGION", value = var.aws_region },
+
+      # Kafka & Redis wiring
+      { name = "SPRING_KAFKA_BOOTSTRAP_SERVERS", value = "kafka.returns-orchestrator-cluster-${var.environment}.local:9092" },
+      { name = "KAFKA_BROKERS", value = "kafka.returns-orchestrator-cluster-${var.environment}.local:9092" },
+      { name = "SPRING_DATA_REDIS_HOST", value = "redis.returns-orchestrator-cluster-${var.environment}.local" },
+      { name = "SPRING_DATA_REDIS_PORT", value = "6379" },
+
+      # Service Discovery wiring for carrier-gateway to mock carrier API
+      { name = "MOCK_CARRIER_API_URL", value = "http://mock-external-carrier-api.returns-orchestrator-cluster-${var.environment}.local:8003" },
+      { name = "CARRIER_API_URL", value = "http://mock-external-carrier-api.returns-orchestrator-cluster-${var.environment}.local:8003" },
+      { name = "CARRIER_SERVICE_URL", value = "http://mock-external-carrier-api.returns-orchestrator-cluster-${var.environment}.local:8003" },
+      { name = "CARRIER_CLIENT_BASE_URL", value = "http://mock-external-carrier-api.returns-orchestrator-cluster-${var.environment}.local:8003" },
+
+      # Database wiring (R2DBC for the App)
+      { name = "SPRING_R2DBC_URL", value = "r2dbc:mssql://sqlserver.returns-orchestrator-cluster-${var.environment}.local:1433/returns_db" },
+      { name = "SPRING_R2DBC_USERNAME", value = "sa" },
+      { name = "SPRING_R2DBC_PASSWORD", value = "ProdPass123!" },
+
+      # Database wiring (JDBC for Flyway Migrations)
+      { name = "SPRING_FLYWAY_URL", value = "jdbc:sqlserver://sqlserver.returns-orchestrator-cluster-${var.environment}.local:1433;databaseName=returns_db;encrypt=true;trustServerCertificate=true;" },
+      { name = "SPRING_FLYWAY_USER", value = "sa" },
+      { name = "SPRING_FLYWAY_PASSWORD", value = "ProdPass123!" }
+    ]
+    logConfiguration = {
+      logDriver = "awslogs"
+      options = {
+        "awslogs-group"         = each.value.log_group
+        "awslogs-region"        = var.aws_region
+        "awslogs-stream-prefix" = "app"
+      }
+    }
+  }])
+}
+
+resource "aws_ecs_service" "downstream_services" {
+  for_each        = local.downstream_services
+  name            = "${each.key}-service"
+  cluster         = aws_ecs_cluster.main.id
+  task_definition = aws_ecs_task_definition.downstream_tasks[each.key].arn
+  desired_count   = 1
+  launch_type     = "FARGATE"
+
+  network_configuration {
+    subnets          = aws_subnet.private[*].id
+    security_groups  = [aws_security_group.ecs_tasks.id]
+    assign_public_ip = false
+  }
+
+  service_registries {
+    registry_arn = aws_service_discovery_service.downstream[each.key].arn
+  }
 }
