@@ -459,8 +459,25 @@ resource "aws_ecs_task_definition" "downstream_tasks" {
       # Database wiring (JDBC for Flyway Migrations)
       { name = "SPRING_FLYWAY_URL", value = "jdbc:sqlserver://sqlserver.returns-orchestrator-cluster-${var.environment}.local:1433;databaseName=returns_db;encrypt=true;trustServerCertificate=true;" },
       { name = "SPRING_FLYWAY_USER", value = "sa" },
-      { name = "SPRING_FLYWAY_PASSWORD", value = "ProdPass123!" }
+      { name = "SPRING_FLYWAY_PASSWORD", value = "ProdPass123!" },
+
+      # Google Workspace SMTP Configuration
+      { name = "SPRING_MAIL_HOST", value = "smtp.gmail.com" },
+      { name = "SPRING_MAIL_PORT", value = "587" },
+      { name = "SPRING_MAIL_USERNAME", value = "james.hayes@granglorialabs.com" },
+      { name = "SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH", value = "true" },
+      { name = "SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE", value = "true" },
+      { name = "SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_REQUIRED", value = "true" },
     ]
+
+    # Injects Google App Password from SSM only for notification-service
+    secrets = each.key == "notification-service" ? [
+      {
+        name      = "SPRING_MAIL_PASSWORD"
+        valueFrom = "arn:aws:ssm:us-east-2:594116288585:parameter/returns/prod/GOOGLE_MAIL_APP_PASSWORD"
+      }
+    ] : []
+
     logConfiguration = {
       logDriver = "awslogs"
       options = {
@@ -489,4 +506,23 @@ resource "aws_ecs_service" "downstream_services" {
   service_registries {
     registry_arn = aws_service_discovery_service.downstream[each.key].arn
   }
+}
+
+resource "aws_iam_role_policy" "ecs_execution_ssm" {
+  name = "returns-execution-ssm-${var.environment}"
+  role = aws_iam_role.ecs_execution_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ssm:GetParameters",
+          "kms:Decrypt"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
 }
