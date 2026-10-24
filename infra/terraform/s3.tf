@@ -4,7 +4,7 @@ resource "random_id" "bucket_suffix" {
 
 resource "aws_s3_bucket" "evidence_photos" {
   bucket        = "returns-evidence-photos-${var.environment}-${random_id.bucket_suffix.hex}"
-  force_destroy = false
+  force_destroy = true
 }
 
 resource "aws_s3_bucket_public_access_block" "evidence_photos" {
