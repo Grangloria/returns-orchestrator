@@ -1,0 +1,64 @@
+name: Documentation Task
+description: Track updates to architectural blueprints, ADRs, runbooks, or API contracts
+title: "[Docs]: "
+labels: ["type:docs"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template to propose or update global architecture docs or local microservice runbooks.
+
+  - type: dropdown
+    id: service
+    attributes:
+      label: Target Documentation Scope
+      description: Select `svc:global` for root `/docs/` or choose the specific microservice module
+      options:
+        - svc:global
+        - svc:api-gateway
+        - svc:carrier-gateway
+        - svc:common-events
+        - svc:customer-portal
+        - svc:inventory-service
+        - svc:mock-carrier-service
+        - svc:notification-service
+        - svc:refund-service
+        - svc:returns-service
+        - svc:infra
+    validations:
+      required: true
+
+  - type: dropdown
+    id: doc-category
+    attributes:
+      label: Document Type
+      description: What classification of documentation is being written or modified?
+      options:
+        - Architecture Decision Record (ADR)
+        - API Specification / Event Schema (OpenAPI, AsyncAPI)
+        - C4 Architecture Diagram / Sequence Flow
+        - Operational Runbook / Observability Dashboard
+        - Developer Setup / Testing Guide
+        - Domain Rules / State Machine Specification
+    validations:
+      required: true
+
+  - type: textarea
+    id: doc-summary
+    attributes:
+      label: Proposed Changes & Context
+      description: What information needs to be added, corrected, or overhauled?
+    validations:
+      required: true
+
+  - type: textarea
+    id: target-paths
+    attributes:
+      label: Target File Paths
+      description: Specific markdown or diagram files being added/modified
+      value: |
+        - `docs/architecture/`
+        - `docs/adrs/`
+        - `<service-name>/docs/`
+    validations:
+      required: true

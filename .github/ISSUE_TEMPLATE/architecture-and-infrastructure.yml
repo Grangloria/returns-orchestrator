@@ -1,0 +1,73 @@
+name: Architecture and Infrastructure
+description: Track CI/CD workflows, AWS infrastructure, testing frameworks, and technical maintenance
+title: "[Infra/Arch]: "
+labels: ["type:architecture-infra"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for foundational engineering work: AWS cloud resources, CI/CD automation, test harness improvements, observability, and structural refactoring.
+
+  - type: dropdown
+    id: service
+    attributes:
+      label: Target Service / Module
+      description: Which service or module does this primarily affect?
+      options:
+        - svc:infra
+        - svc:global
+        - svc:api-gateway
+        - svc:carrier-gateway
+        - svc:common-events
+        - svc:customer-portal
+        - svc:inventory-service
+        - svc:mock-carrier-service
+        - svc:notification-service
+        - svc:refund-service
+        - svc:returns-service
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Domain Category
+      description: What area of architecture or infrastructure does this task fall under?
+      options:
+        - CI/CD Pipelines & Automation
+        - AWS Cloud Infrastructure & Terraform
+        - Testing Frameworks & Coverage Gaps
+        - Observability, Tracing & Logging
+        - System Architecture & Structural Refactoring
+        - Security, Secrets & IAM Hardening
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem-statement
+    attributes:
+      label: Problem & Motivation
+      description: What limitation, pipeline inefficiency, infrastructure gap, or architectural need is being addressed?
+      placeholder: The ECS deployment pipeline lacks automated rollback on failed health checks...
+    validations:
+      required: true
+
+  - type: textarea
+    id: implementation-details
+    attributes:
+      label: Technical Approach & Implementation Details
+      description: Specific pipelines, Terraform modules, Docker configurations, or codebases being altered
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria / Verification
+      description: How will this infrastructure or pipeline change be proven safe and functional?
+      value: |
+        - [ ] Infrastructure/pipeline changes verified in staging
+        - [ ] All CI pipeline builds and tests pass cleanly
+        - [ ] Documentation or runbook updated in `/docs` if operational behavior changed
+    validations:
+      required: true

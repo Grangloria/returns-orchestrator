@@ -1,0 +1,72 @@
+name: Technical / Maintenance Task
+description: Track technical debt, CI/CD, infrastructure upgrades, or testing gaps
+title: "[Tech]: "
+labels: ["type:tech-debt"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for internal engineering tasks that do not deliver customer-facing features (e.g., CI/CD workflows, AWS infra, test coverage, refactoring, dependencies).
+
+  - type: dropdown
+    id: service
+    attributes:
+      label: Target Service / Module
+      description: Which service or infrastructure module does this task target?
+      options:
+        - svc:infra
+        - svc:global
+        - svc:api-gateway
+        - svc:carrier-gateway
+        - svc:common-events
+        - svc:customer-portal
+        - svc:inventory-service
+        - svc:mock-carrier-service
+        - svc:notification-service
+        - svc:refund-service
+        - svc:returns-service
+    validations:
+      required: true
+
+  - type: dropdown
+    id: work-category
+    attributes:
+      label: Work Category
+      description: Select the nature of this technical task
+      options:
+        - CI/CD & Automation (GitHub Actions, build scripts)
+        - Cloud Infrastructure & AWS (Terraform, ECS, IAM, Networking)
+        - Testing & QA (Unit/integration test coverage, contract testing)
+        - Technical Debt & Refactoring (Code cleanup, library updates)
+        - Non-Functional / NFR (Performance, security hardening, resilience)
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem-statement
+    attributes:
+      label: Problem & Motivation
+      description: What technical friction, missing test suite, or infrastructure deficiency needs fixing?
+      placeholder: The carrier-gateway integration test suite is flaky and lacks mock timeout coverage...
+    validations:
+      required: true
+
+  - type: textarea
+    id: technical-plan
+    attributes:
+      label: Implementation Plan
+      description: Outline the technical changes or pipeline configurations to execute
+    validations:
+      required: true
+
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification & Definition of Done
+      description: How will you prove the technical improvement works as expected?
+      value: |
+        - [ ] CI pipeline runs green without regressions
+        - [ ] New/updated tests pass locally and in CI
+        - [ ] Infrastructure/pipeline changes verified in staging
+    validations:
+      required: true

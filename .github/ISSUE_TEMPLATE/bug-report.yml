@@ -1,0 +1,58 @@
+name: Standard Task / Feature
+description: Track an engineering task, capability, or functional improvement
+title: "[Task]: "
+labels: ["type:feature"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for discrete features or engineering tasks scoped to a specific service.
+
+  - type: dropdown
+    id: service
+    attributes:
+      label: Target Service
+      description: Select the microservice or module this task primarily affects
+      options:
+        - svc:api-gateway
+        - svc:carrier-gateway
+        - svc:common-events
+        - svc:customer-portal
+        - svc:inventory-service
+        - svc:mock-carrier-service
+        - svc:notification-service
+        - svc:refund-service
+        - svc:returns-service
+        - svc:infra
+        - svc:global
+    validations:
+      required: true
+
+  - type: textarea
+    id: objective
+    attributes:
+      label: Objective & Summary
+      description: What work needs to be accomplished and what business value does it deliver?
+      placeholder: Implement idempotent refund retry logic using Redis distributed locks...
+    validations:
+      required: true
+
+  - type: textarea
+    id: technical-design
+    attributes:
+      label: Technical Approach & Changes
+      description: High-level overview of contracts, endpoints, schemas, or dependencies touched
+    validations:
+      required: false
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria / Definition of Done
+      description: What conditions must be met for this task to be closed?
+      value: |
+        - [ ] Interfaces/ADR updated if contract changed
+        - [ ] Unit & integration tests written and passing
+        - [ ] Monorepo build and lint checks pass clean
+    validations:
+      required: true
