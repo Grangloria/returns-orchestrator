@@ -2,11 +2,10 @@ rootProject.name = 'returns-system'
 
 // These are the folders Gradle will look for
 include 'returns-service'
-include 'mock-external-carrier-api'
+include 'mock-carrier-service'
 include 'notification-service'
 include 'inventory-service'
 include 'carrier-gateway'
-include 'mock-carrier-simulator'
 include 'refund-service'
 include 'api-gateway'
 include 'common-events' // common kafka events
