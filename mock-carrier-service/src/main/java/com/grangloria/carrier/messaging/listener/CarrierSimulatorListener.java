@@ -19,12 +19,15 @@ public class CarrierSimulatorListener
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final String packageReceivedTopic;
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
+    private final long transitDelaySeconds;
 
     public CarrierSimulatorListener(
             KafkaTemplate<String, Object> kafkaTemplate,
-            @Value("${kafka.topics.package-received}") String packageReceivedTopic) {
+            @Value("${kafka.topics.package-received}") String packageReceivedTopic,
+            @Value("${carrier.simulator.transit-delay-seconds:5}") long transitDelaySeconds) {
         this.kafkaTemplate = kafkaTemplate;
         this.packageReceivedTopic = packageReceivedTopic;
+        this.transitDelaySeconds = transitDelaySeconds;
     }
 
     @KafkaListener(
@@ -50,6 +53,6 @@ public class CarrierSimulatorListener
 
             kafkaTemplate.send(packageReceivedTopic, effectiveReturnId, receivedEvent);
             System.out.printf("[CARRIER SIMULATOR] Package delivered to warehouse dock for Return ID: %s. Emitted 'package-received'%n", effectiveReturnId);
-        }, 5, TimeUnit.SECONDS);
+        }, transitDelaySeconds, TimeUnit.SECONDS);
     }
 }

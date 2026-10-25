@@ -6,6 +6,8 @@ server:
 
 carrier:
   name: ${CARRIER_NAME:Grangloria Freight}
+  simulator:
+    transit-delay-seconds: ${CARRIER_SIMULATOR_TRANSIT_DELAY_SECONDS:5}
 
 kafka:
   topics:
