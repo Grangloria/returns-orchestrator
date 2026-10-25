@@ -1,5 +1,6 @@
 package com.grangloria.carrier.messaging.listener;
 
+import com.grangloria.carrier.config.CarrierProperties;
 import com.returns.common.event.PackageReceivedEvent;
 import com.returns.common.event.ReturnLabelReadyEvent;
 import org.springframework.beans.factory.annotation.Value;
@@ -13,21 +14,20 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 @Component
-public class CarrierSimulatorListener
-{
+public class CarrierSimulatorListener {
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final String packageReceivedTopic;
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
-    private final long transitDelaySeconds;
+    private final CarrierProperties carrierProperties;
 
     public CarrierSimulatorListener(
             KafkaTemplate<String, Object> kafkaTemplate,
             @Value("${kafka.topics.package-received}") String packageReceivedTopic,
-            @Value("${carrier.simulator.transit-delay-seconds:5}") long transitDelaySeconds) {
+            CarrierProperties carrierProperties) {
         this.kafkaTemplate = kafkaTemplate;
         this.packageReceivedTopic = packageReceivedTopic;
-        this.transitDelaySeconds = transitDelaySeconds;
+        this.carrierProperties = carrierProperties;
     }
 
     @KafkaListener(
@@ -40,7 +40,10 @@ public class CarrierSimulatorListener
                 ? event.returnId()
                 : "RET-" + (event.orderId() != null ? event.orderId() : "UNKNOWN");
 
-        System.out.printf("[CARRIER SIMULATOR] Label generated for Return ID: %s. Simulating 5-second transit delay...%n", effectiveReturnId);
+        long transitDelaySeconds = carrierProperties.simulator().transitDelaySeconds();
+
+        System.out.printf("[%s] Label generated for Return ID: %s. Simulating %d-second transit delay...%n",
+                carrierProperties.name(), effectiveReturnId, transitDelaySeconds);
 
         scheduler.schedule(() -> {
             PackageReceivedEvent receivedEvent = new PackageReceivedEvent(
@@ -52,7 +55,8 @@ public class CarrierSimulatorListener
             );
 
             kafkaTemplate.send(packageReceivedTopic, effectiveReturnId, receivedEvent);
-            System.out.printf("[CARRIER SIMULATOR] Package delivered to warehouse dock for Return ID: %s. Emitted 'package-received'%n", effectiveReturnId);
+            System.out.printf("[%s] Package delivered to warehouse dock for Return ID: %s. Emitted 'package-received'%n",
+                    carrierProperties.name(), effectiveReturnId);
         }, transitDelaySeconds, TimeUnit.SECONDS);
     }
 }
