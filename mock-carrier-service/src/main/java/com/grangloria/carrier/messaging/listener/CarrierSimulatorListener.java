@@ -1,4 +1,4 @@
-package com.grangloria.simulator.listener;
+package com.grangloria.carrier.messaging.listener;
 
 import com.returns.common.event.PackageReceivedEvent;
 import com.returns.common.event.ReturnLabelReadyEvent;
@@ -13,7 +13,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 @Component
-public class CarrierSimulatorListener {
+public class CarrierSimulatorListener
+{
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final String packageReceivedTopic;

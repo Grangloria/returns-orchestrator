@@ -23,6 +23,8 @@ repositories {
 
 dependencies {
 
+    implementation project(':common-events')
+
     // 2. Spring Boot
     implementation 'org.springframework.boot:spring-boot-starter-webflux'
 
@@ -53,6 +55,11 @@ dependencies {
 
     // Resilience4j Spring Boot 3 Starter
     implementation 'io.github.resilience4j:resilience4j-spring-boot3:2.2.0'
+
+    implementation 'org.springframework.kafka:spring-kafka'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
 
 tasks.named('test') {
